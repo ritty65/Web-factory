@@ -1,0 +1,21 @@
+[Unit]
+Description=Factory narrow authenticated browser broker
+After=web-factory-reader.service
+Requires=web-factory-reader.service
+[Service]
+Type=simple
+User=webfactory-reader
+Group=webfactory-reader
+WorkingDirectory=/opt/webfactory
+EnvironmentFile=/etc/webfactory/reader.env
+ExecStart=/usr/bin/env node /opt/webfactory/scripts/camofox-broker.mjs
+Restart=on-failure
+RestartSec=5
+KillMode=control-group
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+[Install]
+WantedBy=multi-user.target

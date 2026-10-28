@@ -11,6 +11,7 @@ import { noLinks } from './db.mjs';
 import { transaction } from './sales.mjs';
 import { runProcess } from './process.mjs';
 import { DEFAULT_FACTORY_MODEL } from './model.mjs';
+import {settingsRecord,settingsDigest,studioStatus} from './studio-config.mjs';
 
 const key=z.string().regex(/^[a-z0-9][a-z0-9-]{7,95}$/);
 const text=(max,min=1)=>z.string().trim().min(min).max(max).refine(s=>!/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(s));
@@ -53,6 +54,16 @@ export async function intakeRuntime({runner=runProcess}={}){
   if(backend==='codex'){try{await runner('codex',['login','status'],{timeout:10000,maxBytes:4096});authenticated=true;}catch{}checks.push({name:'model_auth',status:authenticated?'configured_not_live_verified':'not_configured'});}
   return {backend,model:backend==='codex'?'codex/default':DEFAULT_FACTORY_MODEL,checks,canAttemptProposal:authenticated&&checks.find(c=>c.name==='model').status==='available'&&checks.find(c=>c.name==='chromium').status==='available',liveVerified:false,limitations:['Binary availability is not authenticated model/network success.','ChatGPT/Codex sign-in must be established separately on the VPS. No credentials are copied.','Lead search and customer delivery are separate integrations.']};
 }
+export async function apiIntakeRuntime(store){
+  const status=await studioStatus(store),checks=[];
+  for(const task of ['research','design','code','repair','vision']){
+    const id=status.data.roles[task],connection=status.connections.find(c=>c.id===id),capability=task==='vision'?'vision':task==='research'?'json':'coding';
+    const passed=connection?.configured&&connection.priced&&connection.check?.state==='passed'&&connection.check.verification==='live_api'&&connection.check.capabilities[capability]&&Date.now()-Date.parse(connection.check.at)<7*86400000;
+    checks.push({name:task,status:passed?'available':'needs_live_test',provider:id});
+  }
+  try{await access(process.env.FACTORY_BROWSER_EXECUTABLE||chromium.executablePath(),constants.X_OK);checks.push({name:'chromium',status:'available'});}catch{checks.push({name:'chromium',status:'unavailable'});}
+  return {backend:'api',model:'api/deepseek-first',checks,canAttemptProposal:checks.every(c=>c.status==='available'),liveVerified:checks.filter(c=>c.name!=='chromium').every(c=>c.status==='available'),limitations:['Connection tests are not lead-quality or website-design acceptance.','Provider charges share the fixed pilot ledger.']};
+}
 async function verifyPhoto(store,id,draftId){const p=get(store,id,'studio_photo');if(!p||p.draftId!==draftId)fail('INTAKE_PHOTO','Photo does not belong to this brief');for(const [file,digest] of [[p.original,p.originalSha256],[p.web,p.webSha256]]){const target=path.join(store.stateRoot,file);await noLinks(target);if(hash(await readFile(target))!==digest)fail('INTAKE_PHOTO','Retained photo bytes changed');}return p;}
 export async function readIntakeProof(store,job){
   const binding=job.input.ownerIntake,p=binding&&get(store,binding.proofId,'studio_proof');
@@ -60,7 +71,8 @@ export async function readIntakeProof(store,job){
   if(!intakeReadiness(p.data).ready)fail('INTAKE_HELD','Supplied brief confirmation is incomplete or stale');
   const photos=[];for(const id of p.data.photoIds){const photo=await verifyPhoto(store,id,p.id);if(hash(photo)!==p.photoDigests?.[id])fail('INTAKE_BINDING','Photo metadata no longer matches the frozen supplied brief');photos.push(photo);}return {...p,photos};
 }
-export async function intakeDispatch(store,name,input,{runtime=intakeRuntime}={}){
+export async function intakeDispatch(store,name,input,{runtime}={}){
+  runtime||=settingsRecord(store)?()=>apiIntakeRuntime(store):intakeRuntime;
   if(name==='intake_runtime')return runtime();
   if(name==='intake_get')return metadata(store,intakeRecord(store,input.id));
   if(name==='intake_list')return {items:store.db.prepare("SELECT record FROM factory_operation WHERE kind='studio_intake' ORDER BY rowid DESC LIMIT 100").all().map(r=>metadata(store,JSON.parse(r.record)))};
@@ -96,10 +108,10 @@ export async function intakeDispatch(store,name,input,{runtime=intakeRuntime}={}
     const jobs=ownedJobs(store,r.id);if(jobs.some(j=>j.input.ownerIntake.version===r.version))fail('INTAKE_BUILD_EXISTS','This brief version already has a build, including stopped work. Inspect it before editing an explicit new version.');
     if(jobs.length>=3)fail('INTAKE_BUILD_CAP','Three attempts already exist for this brief; no automatic replacement or budget reset');
     const campaign=store.createCampaign({name:r.data.name+' · supplied private concept',area:r.data.area,niche:r.data.niche,query:r.id,candidateLimit:3,buildLimit:3,retryLimit:0,deadlineMinutes:30,autoBuild:false});
-    const modelSelection=process.env.FACTORY_MODEL_BACKEND==='codex'?'codex/default':DEFAULT_FACTORY_MODEL;
+    const modelSelection=settingsRecord(store)?'api/deepseek-first':process.env.FACTORY_MODEL_BACKEND==='codex'?'codex/default':DEFAULT_FACTORY_MODEL;
     const proofId='proof-'+hash({id:r.id,version:r.version}).slice(0,24);
     const job=store.createJob({campaignId:campaign.id,kind:'site',input:{ownerIntake:{id:r.id,version:r.version,digest:input.digest,proofId},modelSelection,requestId:input.requestId}});
-    put(store,proofId,'studio_proof',{id:r.id,version:r.version,digest:input.digest,data:r.data,photoDigests,jobId:job.id,campaignId:campaign.id,modelSelection,createdAt:now(),provenance:'operator_supplied_private_concept'});
+    put(store,proofId,'studio_proof',{id:r.id,version:r.version,digest:input.digest,data:r.data,photoDigests,jobId:job.id,campaignId:campaign.id,modelSelection,...(modelSelection.startsWith('api/')?{apiSettingsDigest:settingsDigest(store)}:{}),createdAt:now(),provenance:'operator_supplied_private_concept'});
     put(store,receiptId,'studio_build',{id:receiptId,inputDigest:hash(input),jobId:job.id,at:now()});return {job,replayed:false};
   });
 }

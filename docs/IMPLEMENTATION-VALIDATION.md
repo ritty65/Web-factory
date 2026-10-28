@@ -1,5 +1,7 @@
 # Implemented intake and lead foundation • 28 October 2026
 
+> Current API workflow: read [DeepSeek-first pilot](DEEPSEEK-PILOT.md), [validation](DEEPSEEK-VALIDATION.md) and [actual UI walkthrough](STUDIO-WALKTHROUGH.html). The earlier sections below describe the legacy workflow, including its separate quotas and former diagnostics-only Camofox behavior. Those paid entry points are held once the new API profile is saved.
+
 ## Delivered code
 
 - Ordinary business-brief fields and bounded private photo uploads; no hand-authored evidence JSON needed for the supplied-content path.

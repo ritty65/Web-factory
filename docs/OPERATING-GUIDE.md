@@ -1,5 +1,7 @@
 # Using Web Factory
 
+> Current API workflow: read [DeepSeek-first pilot](DEEPSEEK-PILOT.md), [validation](DEEPSEEK-VALIDATION.md) and [actual UI walkthrough](STUDIO-WALKTHROUGH.html). The earlier sections below describe the legacy workflow, including its separate quotas and former diagnostics-only Camofox behavior. Those paid entry points are held once the new API profile is saved.
+
 ## Start with one business
 
 Use Node 24.13+ and install the locked packages with `npm ci`. Use the system Chromium path or install the matching Playwright Chromium. For a ChatGPT/Codex proposer:

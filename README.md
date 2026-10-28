@@ -2,7 +2,9 @@
 
 A local operator workspace for finding suitable local service businesses, verifying their evidence, producing private website proposals, and reviewing the exact output before any customer delivery.
 
-**Current status:** the imported app now includes a real guided Business intake, private supplied-photo uploads, a lead/evidence workspace, manual/CSV intake, an optional Google Places adapter, opt-in daily discovery and a ChatGPT/Codex proposal adapter. The lead workspace also includes target rules, ranked research, optional Firecrawl cross-checks, rotating searches and failure/saturation pauses. See [the operating guide](docs/OPERATING-GUIDE.md). Offline tests and local browser paths are verified. Live model access, real provider yield and VPS deployment remain separate acceptance checks; they have not been certified by fixture tests.
+**Current status:** the DeepSeek-first pilot is implemented: private multi-provider setup, a shared $100 allowance, Google/Apollo/Firecrawl source checks, real Scrapling and guarded Camofox adapters, an advisory Overture import, automatic private drafts, three rendered opening alternatives, browser/factual/visual checks, exact-version review and private VPS service templates. The local tests use fictional providers. Live lead yield, actual DeepSeek output, native Camoufox and the Hostinger deployment still require live acceptance.
+
+Start with [the DeepSeek-first guide](docs/DEEPSEEK-PILOT.md), [actual validation](docs/DEEPSEEK-VALIDATION.md) and [the visual walkthrough](docs/STUDIO-WALKTHROUGH.html).
 
 ## Start here
 
@@ -18,7 +20,7 @@ A local operator workspace for finding suitable local service businesses, verify
 
 ## Run locally
 
-Use Node.js 24.13 or newer (Node 24.19 tested), npm, and Python 3 for the existing offline source fixtures.
+Use Node.js 24.13 or newer (Node 24.19 tested), npm, and Python 3.12 for the isolated source runtimes.
 
 ```sh
 npm ci
@@ -33,7 +35,8 @@ For another private data directory, set **both** `FACTORY_STATE` and `FACTORY_DB
 ## Test
 
 ```sh
-# Install Playwright's matching browser on a fresh machine:
+# Install the locked source runtimes and matching browser on a fresh machine:
+node scripts/install-studio-runtimes.mjs
 npx playwright install --with-deps chromium
 npm test
 ```
@@ -42,9 +45,11 @@ If Chromium is already installed, set `FACTORY_BROWSER_EXECUTABLE` to its absolu
 
 ## Live operation prerequisites
 
-For the new supplied-content flow, set `FACTORY_MODEL_BACKEND=codex` and sign in to the supported Codex CLI as the operator account. The adapter uses a read-only proposer with large prompts sent through stdin and no unrelated lead API keys in its environment. The project-local `agent-browser` dependency supplies the existing public reader. The legacy research-led flow still uses its original OpenCode/source-MCP contract; the Codex proposer is not a silent substitute for that research worker. Firecrawl remains optional search. PlaceRoot remains separately installed and Houston-specific.
+Open **Setup & API keys** and save a private API profile. DeepSeek is the default code provider; OpenRouter is the default image-review route. OpenAI and registered compatible services are supported. The full pilot requires tested Google Places, Apollo, Firecrawl, Scrapling and guarded Camofox integrations, confirmed current prices/source use, and an allowance. A ChatGPT subscription is separate from API credit. See the [guide](docs/DEEPSEEK-PILOT.md) for installation, exact limits and recovery.
 
-Start with **Business intake** and one real supplied brief. Save starts nothing; Build requires explicit confirmations, an exact version and model/browser prerequisites. The legacy evidence-JSON import remains for its original stricter source contract. Use **Lead workspace** for manual/CSV pointers or an explicitly authorized Google Places search. Daily discovery starts disabled and needs both an adopted schedule and a separately installed private VPS timer.
+`node scripts/install-studio-runtimes.mjs` installs locked isolated Python 3.12/Node tools. Genuine Camoufox download is explicit with `--fetch-browser`; the broker/source service must be started separately. Use the VPS installer only on the documented private server. Saving keys starts no provider request; an automatic pilot starts only after explicit authorization. Existing legacy histories remain; their paid routes are held after an API profile is adopted so they cannot bypass its shared allowance.
+
+Without an API profile, the earlier owner-supplied Codex and research-led OpenCode workflows remain available with their original prerequisites and separate authority. Their earlier documentation is historical alongside the new guide. No live integration, human acceptance, sale or deployment is inferred from a fixture.
 
 ## Data and publication
 

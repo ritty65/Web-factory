@@ -113,7 +113,7 @@ export async function startServer(service, { port = 8780, previewPort = 8781 } =
         res.setHeader('content-disposition', `${image ? 'inline' : 'attachment'}; filename="${path.basename(artifact.relative).replace(/[^a-zA-Z0-9._-]/g, '-')}"`);
         return res.end(req.method === 'HEAD' ? undefined : bytes);
       }
-      const file = ({ '/': 'index.html', '/app.js': 'app.js', '/studio.js': 'studio.js', '/pilot.js': 'pilot.js', '/progress.js': 'progress.js', '/batches.js': 'batches.js', '/style.css': 'style.css', '/assets/DMSans-Variable.ttf': 'assets/DMSans-Variable.ttf' })[pathname];
+      const file = ({ '/': 'index.html', '/app.js': 'app.js', '/studio.js': 'studio.js', '/setup.js': 'setup.js', '/pilot.js': 'pilot.js', '/progress.js': 'progress.js', '/batches.js': 'batches.js', '/style.css': 'style.css', '/assets/DMSans-Variable.ttf': 'assets/DMSans-Variable.ttf' })[pathname];
       if (!file) fail('NOT_FOUND', 'Not found');
       res.setHeader('content-type', MIME[path.extname(file)]); res.end(req.method === 'HEAD' ? undefined : await readFile(path.join(webRoot, file)));
     } catch (e) { sendError(res, e); }
@@ -122,5 +122,8 @@ export async function startServer(service, { port = 8780, previewPort = 8781 } =
   const closeServers = [server, preview].map(prepareShutdown);
   let listenUrl, previewListenUrl;
   try { previewListenUrl=await listen(preview,previewPort);previewUrl=configuredPreview||previewListenUrl;listenUrl=await listen(server,port);url=configuredApp||listenUrl; } catch (e) { preview.close(); server.close(); throw e; }
-  return { url, previewUrl, listenUrl, previewListenUrl, close: () => Promise.all(closeServers.map(close => close())) };
+  // External timer processes enqueue only. The long-lived service owns worker
+  // children, including work queued while its previous worker was idle.
+  const ownedPump=setInterval(()=>service.wakeOwnedWork?.(),5000);ownedPump.unref();
+  return { url, previewUrl, listenUrl, previewListenUrl, close: () => {clearInterval(ownedPump);return Promise.all(closeServers.map(close => close()));} };
 }

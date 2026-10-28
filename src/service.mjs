@@ -24,6 +24,10 @@ import { DEFAULT_FACTORY_MODEL } from './model.mjs';
 import { instagramResource } from './post-evidence.mjs';
 import { LEAD_WORKSPACE_OPERATIONS, leadWorkspaceDispatch } from './lead-workspace.mjs';
 import { INTAKE_OPERATIONS, intakeDispatch } from './studio-intake.mjs';
+import { STUDIO_SETUP_OPERATIONS, setupDispatch, settingsRecord } from './studio-config.mjs';
+import { STUDIO_BASELINE_OPERATIONS, baselineDispatch } from './studio-baseline.mjs';
+import { STUDIO_REVIEW_OPERATIONS, recordStudioReview, latestStudioReview } from './studio-review.mjs';
+import { STUDIO_AUTOPILOT_OPERATIONS, autopilotDispatch } from './studio-autopilot.mjs';
 
 const key = z.string().regex(/^[a-z0-9][a-z0-9-]{1,95}$/);
 const empty = z.object({}).strict();
@@ -32,6 +36,10 @@ const digest = z.string().regex(/^[a-f0-9]{64}$/);
 const feedback = z.string().trim().min(8).max(3000).refine(s => !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(s));
 const operation = (description, schema, readOnly = true) => ({ description, schema, readOnly });
 export const OPERATIONS = {
+  ...STUDIO_SETUP_OPERATIONS,
+  ...STUDIO_BASELINE_OPERATIONS,
+  ...STUDIO_REVIEW_OPERATIONS,
+  ...STUDIO_AUTOPILOT_OPERATIONS,
   ...LEAD_WORKSPACE_OPERATIONS,
   ...INTAKE_OPERATIONS,
   ...SALES_OPERATIONS,
@@ -70,7 +78,7 @@ export const OPERATIONS = {
 };
 
 export function configFromEnv() { return { ...(process.env.FACTORY_DB ? { dbPath: process.env.FACTORY_DB } : {}), ...(process.env.FACTORY_STATE ? { stateRoot: process.env.FACTORY_STATE } : {}), autoRun: process.env.FACTORY_AUTORUN !== '0' }; }
-export function createService(store, { autoRun = true, batchPrerequisites, boundaryPreflight = requireBoundary, seedCollector = async options => (await import('./seed-source.mjs')).collectSeeds(options), boundaryPreparer, leadRequest, intakeRuntime } = {}) {
+export function createService(store, { autoRun = true, batchPrerequisites, boundaryPreflight = requireBoundary, seedCollector = async options => (await import('./seed-source.mjs')).collectSeeds(options), boundaryPreparer, leadRequest, intakeRuntime, studioRequest, studioReaders } = {}) {
   const prerequisites = batchPrerequisites || (async settings => {
     const runtime = await doctor(store);
     const required = ['opencode', 'browser', 'python', 'sharp', 'playwright', '@axe-core/playwright'];
@@ -96,14 +104,22 @@ export function createService(store, { autoRun = true, batchPrerequisites, bound
   const service = {
     store,
     wakeOwnedWork() {
+      const lease=store.db.prepare("SELECT value FROM factory_meta WHERE key='worker'").get()?.value;
+      if(lease&&/^\d+$/.test(lease)){try{process.kill(Number(lease),0);return;}catch(e){if(e.code!=='ESRCH')return;}}
       const pending = store.db.prepare("SELECT 1 FROM factory_job WHERE state IN ('queued','running') LIMIT 1").get();
-      const activeBatch = store.db.prepare("SELECT name FROM sqlite_master WHERE name='factory_operation'").get() && store.db.prepare("SELECT 1 FROM factory_operation WHERE kind='batch' AND json_extract(record,'$.state')='active' LIMIT 1").get();
+      const activeBatch = !settingsRecord(store)&&store.db.prepare("SELECT name FROM sqlite_master WHERE name='factory_operation'").get() && store.db.prepare("SELECT 1 FROM factory_operation WHERE kind='batch' AND json_extract(record,'$.state')='active' LIMIT 1").get();
       if (pending || activeBatch) kick();
     },
     async dispatch(name, raw = {}) {
       const op = OPERATIONS[name]; if (!op) fail('UNKNOWN_OPERATION', 'Unknown or unsupported operation');
       const parsed = op.schema.safeParse(raw); if (!parsed.success) fail('INVALID_INPUT', 'Unsupported or unexpected input fields or values', { fields: parsed.error.issues.map(i => i.path.join('.')).slice(0, 10) });
       const input = parsed.data;
+      if(name==='leads_schedule_save'&&input.enabled&&settingsRecord(store))fail('STUDIO_METERED_WORKFLOW','Use the Automatic drafts timer with the shared API allowance; legacy scheduling remains disabled');
+      if(['leads_discover','leads_research','leads_schedule_tick','discover','source_inspect','candidate_recheck','build_site','research_probe','assisted_build','batch_start','batch_continue','batch_build_selected','batch_recover_launch','direction_repair','polish_site','revise_site'].includes(name)&&settingsRecord(store))fail('STUDIO_METERED_WORKFLOW','This workspace uses the shared API allowance. Use Setup, Automatic drafts or a new Business intake version; legacy paid routes are held.');
+      if (STUDIO_SETUP_OPERATIONS[name]) return setupDispatch(store,name,input,{...(studioRequest?{request:studioRequest}:{})});
+      if (STUDIO_BASELINE_OPERATIONS[name]) return baselineDispatch(store,name,input);
+      if (STUDIO_REVIEW_OPERATIONS[name]) return recordStudioReview(store,input);
+      if (STUDIO_AUTOPILOT_OPERATIONS[name]) {const result=await autopilotDispatch(store,name,input,{...(studioRequest?{request:studioRequest}:{}),...(studioReaders?{readers:studioReaders}:{})});if(result.queued)kick();return result;}
       if (LEAD_WORKSPACE_OPERATIONS[name]) return leadWorkspaceDispatch(store,name,input,{...(leadRequest?{request:leadRequest}:{})});
       if (INTAKE_OPERATIONS[name]) { const result=await intakeDispatch(store,name,input,{...(intakeRuntime?{runtime:intakeRuntime}:{})}); if(name==='intake_build')kick();return result; }
       if (SALES_OPERATIONS[name]) return salesDispatch(store, name, input);
@@ -121,13 +137,13 @@ export function createService(store, { autoRun = true, batchPrerequisites, bound
         case 'status': { const s = service.snapshot(); return { at: s.at, scope: s.scope, counts: { businesses: s.businesses.length, campaigns: s.campaigns.length, jobs: s.jobs.length, candidates: s.candidates.length, photos: new Set([...s.libraryFiles.filter(f => f.kind === 'photo'), ...s.assets].map(f => f.sha256)).size, indexedLibraryFiles: s.indexedFileCount }, authority: s.authority, campaigns: s.campaigns.map(({ id, name, candidateLimit, buildLimit, autoBuild }) => ({ id, name, candidateLimit, buildLimit, autoBuild })), businesses: s.businesses.map(({ id, name, design_status }) => ({ id, name, designStatus: design_status })), candidates: s.candidates.map(({ id, name, assessment, origin }) => ({ id, name, assessment, origin })), jobs: s.jobs.slice(0, 30).map(({ id, kind, state, stage, message, attempt }) => ({ id, kind, state, stage, message, attempt })), references: s.references.map(({ id, name, status }) => ({ id, name, status })), vault: s.vault.map(({ id, name, status, inventorySynced, liveVerified }) => ({ id, name, status, inventorySynced, liveVerified })) }; }
         case 'doctor': return doctor(store);
         case 'job_get': {
-          const record = job => ({ job, events: store.events(job.id), artifacts: [...store.artifacts(job.id), ...(job.outputs.verificationJobId ? store.artifacts(job.outputs.verificationJobId) : [])] });
+          const record = job => ({ job, ...(job.input.apiConcept||job.input.modelSelection?.startsWith('api/')?{operatorReview:latestStudioReview(store,job)}:{}), events: store.events(job.id), artifacts: [...store.artifacts(job.id), ...(job.outputs.verificationJobId ? store.artifacts(job.outputs.verificationJobId) : [])] });
           const job = store.job(input.id); return { ...record(job), comparison: job.input.parentSiteJobId ? record(store.job(job.input.parentSiteJobId)) : null };
         }
         case 'candidate_get': return { candidate: store.candidate(input.id), jobs: store.jobs().filter(j => j.input.candidateId === input.id) };
         case 'candidate_recheck': { const candidate = store.candidate(input.id); if (candidate.assessment.state !== 'blocked') fail('RECHECK', 'Only a held candidate can use the bounded follow-up'); const job = store.createJob({ campaignId: candidate.campaignId, kind: 'discovery', input: { recheckCandidateId: candidate.id } }); kick(); return job; }
         case 'candidate_evidence_import': { const c = store.candidate(input.id); for (const key of input.evidence.observationJobIds || []) { const job = store.job(key); if (job.campaignId !== c.campaignId || !['discovery', 'source'].includes(job.kind)) fail('SOURCE_BINDING', 'Observation jobs must belong to this campaign'); } return store.replaceCandidate(input.id, input.evidence, 'external_evidence_import'); }
-        case 'library_promote': { if(store.job(input.id).input.ownerIntake)fail('INTAKE_WORKFLOW','Use the exact supplied-concept review ZIP. Legacy library promotion requires a separately qualified research candidate.'); const { promoteReview } = await import('./promotion.mjs'); return promoteReview(store, input.id); }
+        case 'library_promote': { if(store.job(input.id).input.ownerIntake||store.job(input.id).input.apiConcept)fail('INTAKE_WORKFLOW','Use the exact supplied-concept review ZIP. Legacy library promotion requires a separately qualified research candidate.'); const { promoteReview } = await import('./promotion.mjs'); return promoteReview(store, input.id); }
         case 'review_note': { await exactReview(input); return store.reviewNote(input.id, input.siteDigest, input.note); }
         case 'polish_site': {
           const parent = store.job(input.id);
@@ -149,7 +165,7 @@ export function createService(store, { autoRun = true, batchPrerequisites, bound
         }
         case 'revise_site': {
           const parent = await exactReview(input);
-          if(parent.input.ownerIntake)fail('INTAKE_WORKFLOW','Edit and save a new supplied brief version in Business intake, then explicitly build it. The prior proposal stays unchanged.');
+          if(parent.input.ownerIntake||parent.input.apiConcept)fail('INTAKE_WORKFLOW','Edit and save a new supplied brief version in Business intake, then explicitly build it. The prior proposal stays unchanged.');
           const c = store.candidate(parent.input.candidateId);
           if (c.assessment.state !== 'qualified') fail('QUALIFICATION', 'Current evidence must still qualify before a revision');
           if (input.reuseStudyJobId) { const { readCreativeSeed } = await import('./craft.mjs'); await readCreativeSeed({ store, sourceJobId: input.reuseStudyJobId, parent, feedback: input.feedback, candidate: c }); }
@@ -157,7 +173,7 @@ export function createService(store, { autoRun = true, batchPrerequisites, bound
         }
         case 'qa_run': {
           const parent = store.job(input.id); if (parent.kind !== 'site' || !parent.outputs.siteRelative || parent.state === 'running') fail('QA_INPUT', 'Choose a stopped/finished site proposal with staged bytes');
-          if(parent.input.ownerIntake)fail('INTAKE_WORKFLOW','This supplied proposal has its own exact QA package. Edit the brief and build a new version for changes; legacy lead QA is a separate workflow.');
+          if(parent.input.ownerIntake||parent.input.apiConcept)fail('INTAKE_WORKFLOW','This supplied proposal has its own exact QA package. Edit the brief and build a new version for changes; legacy lead QA is a separate workflow.');
           let siteDigest = parent.outputs.siteDigest;
           if (!siteDigest) {
             if (!parent.outputs.qaRelative) fail('QA_INPUT', 'A frozen proposal/QA report is required before a read-only recheck');

@@ -89,3 +89,15 @@
 #main:is([data-view=intake],[data-view=opportunities]) .page-heading h1{font-size:clamp(1.8rem,3.6vw,3rem);line-height:1.13;overflow-wrap:anywhere}.studio-workspace{min-width:0;overflow-wrap:anywhere}.studio-workspace .form-grid>*{min-width:0}
 .studio-photo-form{grid-template-columns:minmax(0,1fr);width:100%;min-width:0}.studio-photo-form>*{min-width:0}.studio-photo-form input[type=file],.studio-photo-form select{width:100%}
 .studio-workspace select{min-height:44px;padding:10px 12px;border:1px solid var(--line);background:var(--white);color:var(--ink);font:inherit;width:100%}.studio-photo-form{padding:20px;border:1px solid var(--line);background:var(--white)}.studio-photo-form label{display:grid;gap:8px;font-size:.85rem}.studio-photo-form input:not([type=checkbox]){width:100%;min-height:44px;padding:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);font:inherit}.studio-photo-form button{justify-self:start}
+
+/* The API setup uses nested sections and disclosures, so labels must keep their
+   own field layout instead of falling back to inline browser controls. */
+.studio-api-setup label:not(.check-label){display:grid;gap:8px;margin:16px 0;font-size:.9rem;font-weight:550;min-width:0}
+.studio-api-setup input:not([type=checkbox]),.studio-api-setup textarea,.studio-api-setup select{width:100%;min-width:0;min-height:44px;padding:10px 12px;border:1px solid #aab5a0;border-radius:2px;background:var(--white);color:var(--ink);font:inherit}
+.studio-api-setup fieldset{min-width:0;margin:20px 0;padding:18px;border:1px solid var(--line)}
+.studio-api-setup legend{font-size:.9rem;font-weight:650}
+.studio-api-setup .check-label{display:flex;gap:12px;align-items:flex-start;font-size:.9rem;font-weight:400;margin:18px 0;padding:8px 0}
+.studio-api-setup .check-label input{flex:none;width:18px;height:18px;margin-top:3px}
+.studio-api-setup details{margin:16px 0;padding:12px 0;border-bottom:1px solid var(--line)}
+.studio-api-setup summary{cursor:pointer;min-height:44px;padding:10px 0;font-weight:650}
+.studio-api-setup button{min-height:44px}

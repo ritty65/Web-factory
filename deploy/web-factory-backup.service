@@ -1,0 +1,17 @@
+[Unit]
+Description=Web Factory idle private snapshot and restore drill
+After=web-factory.service
+[Service]
+Type=oneshot
+User=webfactory
+Group=webfactory
+WorkingDirectory=/opt/webfactory
+EnvironmentFile=/etc/webfactory/runtime.env
+Environment=FACTORY_AUTORUN=0
+ExecStart=/usr/bin/env node /opt/webfactory/scripts/studio-backup.mjs
+TimeoutStartSec=300
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/webfactory

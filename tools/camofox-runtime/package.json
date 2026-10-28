@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@askjo/camofox-browser": "1.18.1"
+  },
+  "private": true,
+  "description": "Isolated pinned Camofox reader; install through scripts/install-studio-runtimes.mjs"
+}

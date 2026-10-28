@@ -9,6 +9,7 @@ import { batchForCampaign, guardBatchJob } from './batch-store.mjs';
 import { reconcileBatches } from './batches.mjs';
 import { relevantSearchEvidence } from './search.mjs';
 import { profileAnchors } from './intake.mjs';
+import {settingsRecord} from './studio-config.mjs';
 
 // Only a host-created, exact one-use continuation receipt may seed the cached
 // prefix with its original policy. All execution guards still use today's batch.
@@ -90,12 +91,16 @@ async function executeOwnedJob(store, jobId, adapters) {
     const full = path.join(store.stateRoot, relative); await noLinks(full); const bytes = await readFile(full); return store.artifact({ jobId, relative, kind, label, bytes: bytes.length, sha256: hash(bytes) });
   }
   try {
+    if(settingsRecord(store)&&!current.input.studioAutopilot&&!current.input.apiConcept&&!current.input.modelSelection?.startsWith('api/'))fail('STUDIO_METERED_WORKFLOW','Legacy external work is held while this workspace uses the shared API profile and allowance');
     if (['site', 'qa'].includes(current.kind)) {
       const policy = await policyIdentity(current.kind === 'site' ? 'production' : 'qa');
       dependency = hash({ dependency, policy: await continuationPolicy(store, current, batch, policy) });
     }
     const context = { jobRoot, signal: controller.signal };
-    if (current.kind === 'discovery') {
+    if (current.kind === 'discovery' && current.input.studioAutopilot) {
+      const result=await (await import('./studio-autopilot.mjs')).runAutopilotDiscovery({store,job:current,stage,register,jobRoot,jobRelative,signal:controller.signal,adapters});
+      store.updateJob(jobId,{state:'review_ready',ownerPid:null,outputs:result,message:'Private-pilot source results retained; qualification and sales are not inferred from transport success'});
+    } else if (current.kind === 'discovery') {
       const discovery = adapters.discover || (await import('./research.mjs')).discover;
       const recheck = current.input.recheckCandidateId ? store.candidate(current.input.recheckCandidateId) : null;
       if (batch?.settings.workflow === 'leads_first' && recheck && hash(recheck) !== batch.selection.evidenceDigest) fail('STALE_EVIDENCE', 'Selected evidence changed before enrichment.');
@@ -164,7 +169,7 @@ async function executeOwnedJob(store, jobId, adapters) {
       const result = await verifyExisting({ store, job: current, stage, register, jobRoot, jobRelative, signal: controller.signal, adapters });
       store.updateJob(jobId, { state: 'review_ready', ownerPid: null, outputs: result, message: 'Current-policy QA and new exact review package ready. Site bytes unchanged; no human acceptance.' });
     } else if (current.kind === 'site') {
-      const produceSite = current.input.ownerIntake ? (await import('./studio-production.mjs')).produceSuppliedSite : current.input.polishOf ? (await import('./polish.mjs')).producePolish : (await import('./production.mjs')).produceSite;
+      const produceSite = current.input.apiConcept || current.input.modelSelection?.startsWith('api/') ? (await import('./studio-pipeline.mjs')).produceApiSite : current.input.ownerIntake ? (await import('./studio-production.mjs')).produceSuppliedSite : current.input.polishOf ? (await import('./polish.mjs')).producePolish : (await import('./production.mjs')).produceSite;
       const result = await produceSite({ store, job: current, campaign, stage, register, jobRoot, jobRelative, signal: controller.signal, adapters });
       store.updateJob(jobId, { state: 'review_ready', ownerPid: null, outputs: result, message: 'Private proposal ready for actual operator visual review; not accepted, sent or published' });
     }
@@ -175,9 +180,13 @@ async function executeOwnedJob(store, jobId, adapters) {
     if (store.job(jobId).attempt !== current.attempt) { store.event(jobId, 'attempt.superseded', 'Prior worker stopped without changing its queued retry', { attempt: current.attempt }); return store.job(jobId); }
     if (e.privateDiagnostics) await writeFile(path.join(jobRoot, 'private-failure.json'), JSON.stringify(e.privateDiagnostics), { mode: 0o600 });
     if (current.kind === 'reference') { const ref = store.references().find(r => r.id === current.input.referenceId); if (ref) store.saveReference({ ...ref, status: ref.captures.length ? 'prior_capture_current_audit_failed' : 'capture_failed', lastFailedAt: now(), lastError: e.code || 'REFERENCE_FAILED' }); }
+    if(current.input.apiConcept){
+      const {record,saveRecord}=await import('./studio-state.mjs');const pilot=record(store,'studio-autopilot','studio_autopilot');
+      if(pilot?.cohortId===current.input.apiConcept.cohortId)saveRecord(store,'studio-autopilot','studio_autopilot',{...pilot,enabled:false,pauseReason:e.code||'PRIVATE_PROPOSAL_FAILED',pausedAt:now()});
+    }
     const cancelled = store.job(jobId).state === 'cancelled';
     if (current.kind === 'probe') { const { operationRecord } = await import('./pilot.mjs'); operationRecord(store, `probe-${current.id}`, 'research_probe', { status: 'blocked', candidateId: current.input.candidateId, jobId: current.id, errorCode: e.code || 'PROBE_FAILED', at: now(), websiteAbsenceEstablished: false, discoveryCertified: false }); }
-    const blocked = /^(INTAKE_|BATCH_|SOURCE_|SEARCH_|MEDIA_|BROWSER_|INTERACTION_|CANDIDATE_CAP|QUALIFICATION|MODEL_|STALE_|QA_|DESIGN_|PROPOSAL_|REMOTE_RUNTIME|PRIVATE_DNS|DEADLINE)/.test(e.code || '');
+    const blocked = /^(INTAKE_|BATCH_|SOURCE_|SEARCH_|MEDIA_|BROWSER_|INTERACTION_|CANDIDATE_CAP|QUALIFICATION|MODEL_|STALE_|QA_|DESIGN_|PROPOSAL_|REMOTE_RUNTIME|PRIVATE_DNS|DEADLINE|PROVIDER_|SPEND_|PRICE_|PILOT_|API_|FACT_|STUDIO_|UNSUPPORTED_CLAIMS|AUTOPILOT_|SETUP_|CREDENTIAL_)/.test(e.code || '');
     store.updateJob(jobId, { state: cancelled ? 'cancelled' : blocked ? 'blocked' : 'failed', ownerPid: null, message: cancelled ? 'Cancelled; prior artifacts preserved' : e.code ? e.message : 'Worker failed; inspect setup and retained stage evidence', errorCode: e.code || 'WORKER_FAILED' });
     store.event(jobId, 'job.stopped', store.job(jobId).message, { errorCode: e.code || 'WORKER_FAILED' });
   } finally { clearInterval(monitor); }
@@ -194,7 +203,7 @@ export async function work(store, { adapters = {}, promote } = {}) {
   try {
     store.recover();
     for (;;) {
-      const advanced = await reconcileBatches(store, { promote });
+      const advanced = settingsRecord(store)?false:await reconcileBatches(store, { promote });
       const jobs = store.queuedJobs();
       if (!jobs.length) {
         if (advanced) continue;
@@ -204,7 +213,7 @@ export async function work(store, { adapters = {}, promote } = {}) {
         // A validated first-site continuation commits batch state before its
         // kick. That kick can see this still-live lease and return: include the
         // resumed batch in this atomic handoff check, not just queued jobs.
-        const resumedBatch = store.db.prepare("SELECT name FROM sqlite_master WHERE name='factory_operation'").get() && store.db.prepare("SELECT 1 FROM factory_operation WHERE kind='batch' AND json_extract(record,'$.state')='active' LIMIT 1").get();
+        const resumedBatch = !settingsRecord(store)&&store.db.prepare("SELECT name FROM sqlite_master WHERE name='factory_operation'").get() && store.db.prepare("SELECT 1 FROM factory_operation WHERE kind='batch' AND json_extract(record,'$.state')='active' LIMIT 1").get();
         if (!pending && !resumedBatch) store.db.prepare("DELETE FROM factory_meta WHERE key='worker' AND value=?").run(String(process.pid));
         store.db.exec('COMMIT'); if (!pending && !resumedBatch) break; else continue;
       }

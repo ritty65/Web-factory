@@ -16,13 +16,19 @@ const evidence = ({ candidate, media, references, feedback }) => `CANONICAL EVID
 LOCAL PHOTO FILES: ${JSON.stringify(media.map(m => ({ file: m.web_file.replace(/^site\//, ''), alt: m.alt, role: m.role, dimensions: m.dimensions, postedAt: m.posted_at })))}
 INSPECTED REFERENCE PRINCIPLES: ${JSON.stringify(references.map(r => ({ name: r.name, principles: r.principles, status: r.status })))}
 SUPPLIED EXACT-PARENT FEEDBACK: ${JSON.stringify(feedback || null)}`;
-const invoke = (common, prompt, files = common.files) => requestModel({ role: 'proposer', directory: common.directory, model: common.model, signal: common.signal, files, prompt });
+const invoke = (common, prompt, files = common.files, task = 'code') => {
+  if(common.apiInvoke){
+    if(common.photoFree)prompt=prompt.replace('Actual food/product/work must appear on the FIRST phone screen with an immediate useful CTA, not below a wall of text.','This is the explicit PHOTO-FREE private-concept profile. Compose the first phone screen with strong typography, abstract original graphics, verified services and an immediate useful CTA. Never fabricate client work images.').replace('Phone food/action must remain immediately visible.','Phone identity and primary action must remain immediately visible.');
+    return common.apiInvoke({task,prompt,files:task==='vision'?(files||[]):[]});
+  }
+  return requestModel({ role: 'proposer', directory: common.directory, model: common.model, signal: common.signal, files, prompt });
+};
 
 export async function makeBrief(common) {
   const result = await invoke(common, `Create a specific creative brief, not a generic sitemap. The operator delegated art-direction selection; this is NOT final aesthetic acceptance.
 ${evidence(common)}
 ${creativeRules}
-Return JSON {"audience":"actual visitor/task","primaryAction":"supported immediate task/destination","directions":[{"name":"...","thesis":"...","desktop":"composition and visual rhythm","phone":"independently composed first screen"}, ... exactly THREE materially DIFFERENT visual worlds],"selectedDirection":0,"selectionReason":"provisional hypothesis; pixels will decide","pageMap":[{"file":"index.html","purpose":"...","allowedFacts":["fact-1"]}, ... exactly FIVE useful distinct pages],"design":{"thesis":"business-specific visual thesis","comparisons":["three concrete non-color differences with named recent/reference work"],"interaction":"actual purpose/states/fallback"},"signatureInteraction": COMPLETE VERSION-1 CONTRACT SPECIFIED ABOVE,"motionPlan":[{"target":"specific supporting photo/type/section","trigger":"entry or bounded scroll","purpose":"why this moment belongs to this business","properties":"transform/opacity/clip-path","phone":"...","fallback":"visible content and live reduced motion"}],"imageRoles":[{"file":"assets/photos/photo-1.webp","role":"...","crop":"desktop vs phone"}],"excludedClaims":["unsupported details omitted"]}. Names in directions must map to genuinely different composition ideas, not palette changes. Include the complete signatureInteraction object, never kind/description alone.`);
+Return JSON {"audience":"actual visitor/task","primaryAction":"supported immediate task/destination","directions":[{"name":"...","thesis":"...","desktop":"composition and visual rhythm","phone":"independently composed first screen"}, ... exactly THREE materially DIFFERENT visual worlds],"selectedDirection":0,"selectionReason":"provisional hypothesis; pixels will decide","pageMap":[{"file":"index.html","purpose":"...","allowedFacts":["fact-1"]}, ... exactly FIVE useful distinct pages],"design":{"thesis":"business-specific visual thesis","comparisons":["three concrete non-color differences with named recent/reference work"],"interaction":"actual purpose/states/fallback"},"signatureInteraction": COMPLETE VERSION-1 CONTRACT SPECIFIED ABOVE,"motionPlan":[{"target":"specific supporting photo/type/section","trigger":"entry or bounded scroll","purpose":"why this moment belongs to this business","properties":"transform/opacity/clip-path","phone":"...","fallback":"visible content and live reduced motion"}],"imageRoles":[{"file":"assets/photos/photo-1.webp","role":"...","crop":"desktop vs phone"}],"excludedClaims":["unsupported details omitted"]}. Names in directions must map to genuinely different composition ideas, not palette changes. Include the complete signatureInteraction object, never kind/description alone.`,common.files,'design');
   const b = result.output;
   if (!Array.isArray(b.pageMap) || b.pageMap.length !== 5 || !Array.isArray(b.directions) || b.directions.length !== 3 || !b.design?.thesis || !b.signatureInteraction?.kind || !Array.isArray(b.motionPlan) || !b.motionPlan.length) fail('DESIGN_BRIEF', 'Brief needs three worlds, five useful pages and a deliberate progressive motion plan');
   const signatureInteraction = validateInteraction(b.signatureInteraction, { candidate: common.candidate, media: common.media, pages: b.pageMap.map(p => p.file) });
@@ -42,7 +48,7 @@ export async function selectDirection(common) {
 ${evidence(common)}
 BRIEF: ${JSON.stringify(common.brief)}
 RENDER RECORDS: ${JSON.stringify(common.rendered.studies)}
-Return JSON {"selectedDirection":0|1|2,"notes":["specific actual desktop/phone observations; why winner, what to improve, why alternatives lose"],"blockingDefects":["blockers in the selected direction or empty"]}.`, common.reviewFiles);
+Return JSON {"selectedDirection":0|1|2,"notes":["specific actual desktop/phone observations; why winner, what to improve, why alternatives lose"],"blockingDefects":["blockers in the selected direction or empty"]}.`, common.reviewFiles,'vision');
   return { ...validateSelection(result.output), modelSessionId: result.sessionId, at: now() };
 }
 export async function repairStudy(common) {
@@ -52,7 +58,7 @@ ${creativeRules}
 ORIGINAL SELECTED STUDY: ${JSON.stringify(common.selectedStudy)}
 OBSERVED BLOCKERS: ${JSON.stringify(common.failures)}
 For a below-fold desktop action, place a clearly labelled primary call link in the first screen independently of the large image, and trim opening geometry. Do not shrink the food into a token thumbnail or reduce typography to generic text. Phone food/action must remain immediately visible. No clipping or tiny captions. Study exception: one index.html with real in-page anchors, not five pages yet.
-Return JSON {"name":"same study name","design":{"thesis":"...","comparisons":["...","...","..."],"interaction":"..."},"files":[{"path":"index.html","content":"COMPLETE HTML"}, ... complete CSS/JS/SVG if used]}. Host runtime/fonts/photos are supplied; never return them.`);
+Return JSON {"name":"same study name","design":{"thesis":"...","comparisons":["...","...","..."],"interaction":"..."},"files":[{"path":"index.html","content":"COMPLETE HTML"}, ... complete CSS/JS/SVG if used]}. Host runtime/fonts/photos are supplied; never return them.`,common.files,'repair');
   return { name: common.selectedStudy.name, ...validateProposal(result.output, { pageCount: 1 }) };
 }
 export async function generateProposal(common) {
@@ -65,7 +71,7 @@ SELECTED STUDY SOURCE (expand and refine this actual visual world, do not replac
 ${creativeRules}
 ${previous ? `This is the ONE bounded ${repairKind} repair. Fix the actual observed defects without dropping content, interaction or art direction. Defects: ${JSON.stringify(failures)}. Prior COMPLETE files: ${JSON.stringify(previous.files)}.` : 'Build the selected world into five useful, visually distinct pages now. Invest in photo-led scroll composition, expressive but legible lettering, useful states and lovely responsive details. The phone should feel specifically composed, not squeezed. Keep the homepage exciting and concise, not a long disclaimer.'}
 Return complete JSON only. No tools, commands, approval or invented files.`;
-  const result = await invoke(common, prompt); return validateProposal(result.output);
+  const result = await invoke(common, prompt,common.files,common.previous?'repair':'code'); return validateProposal(result.output);
 }
 export async function critique(common) {
   const { candidate, brief, qa, captureManifest } = common;
@@ -76,7 +82,7 @@ ACTUAL RENDERED SELECTION: ${JSON.stringify(common.selection || null)}.
 SELECTED VISUAL WORLD: ${JSON.stringify(common.selectedStudy ? {name:common.selectedStudy.name,design:common.selectedStudy.design} : null)}.
 When an actual rendered selection is supplied, it supersedes the brief's provisional selectedDirection and provisional opening copy. Judge the selected visual world and actual visitor task, NOT the discarded provisional alternative. Do not request a return to an unselected direction. This does not waive factual, visual or interaction defects, and does not establish human acceptance.
 Critique actual hierarchy/crop/readability/phone fold, meaningful inner-page differences, supported claims, interaction character and composition through intermediate states. The user explicitly found the last website too boring. A technically valid beige document, repetitive card shell, excessive caveats or simply sprinkling fade-ups is blocking creative rework. Do NOT mistake image captions and dated examples for current availability. Check actual hero product visibility and CTA on phone. Name each page inspected. A still frame cannot certify smoothness: report that limit; motion behavior is separately measured.
-Return JSON {"reviewer":"AI vision critique — not human acceptance","notes":["specific actual pixel findings by page/device"],"blockingDefects":["actionable factual/visual defects or empty if none observed"],"limitations":["actual limits"],"humanDecision":null}. No score, self-congratulation or production-ready/accepted claim.`);
+Return JSON {"reviewer":"AI vision critique — not human acceptance","notes":["specific actual pixel findings by page/device"],"blockingDefects":["actionable factual/visual defects or empty if none observed"],"limitations":["actual limits"],"humanDecision":null}. No score, self-congratulation or production-ready/accepted claim.`,common.files,'vision');
   if (!Array.isArray(result.output.notes) || !Array.isArray(result.output.blockingDefects)) fail('DESIGN_CRITIQUE', 'Actual-pixel critique needs notes and blocking defects');
   return { ...result.output, reviewer: 'AI vision critique — not human acceptance', humanDecision: null, modelSessionId: result.sessionId, at: now(), siteDigest: hash(qa.siteHashes) };
 }

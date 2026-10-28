@@ -1,5 +1,7 @@
 # How reliable lead sourcing will work
 
+> Current API workflow: read [DeepSeek-first pilot](DEEPSEEK-PILOT.md), [validation](DEEPSEEK-VALIDATION.md) and [actual UI walkthrough](STUDIO-WALKTHROUGH.html). The earlier sections below describe the legacy workflow, including its separate quotas and former diagnostics-only Camofox behavior. Those paid entry points are held once the new API profile is saved.
+
 Houston is the confirmed first market. Detailing is the small initial test category, not a restriction on the future product. City and service rules are editable in Lead workspace.
 
 The goal is a short list of real businesses with an evidenced website opportunity and a published business contact. A long list of directory records is not success. No provider can guarantee current facts, an endless supply of suitable businesses, buying intent or sales.

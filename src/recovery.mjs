@@ -11,6 +11,7 @@ import {operationRecord,operationList} from './pilot.mjs';
 import {treeHashes} from './proposal.mjs';
 import {verifySeedCapture} from './seed-capture.mjs';
 import {validateSeedReceipt} from './seeds.mjs';
+import {sanitizeStudioSnapshot,holdStudioRestore} from './studio-recovery.mjs';
 
 const SOURCE=fileURLToPath(new URL('../',import.meta.url));
 const APP=['src','web','runtime','workers','tests','scripts','bin','docs','README.md','AGENTS.md','.impeccable.md','package.json','package-lock.json','opencode.json','qa.mjs'];
@@ -19,7 +20,8 @@ APP.push('.npmrc','.nvmrc','.gitignore');
 const FIXED_HIDDEN_INPUTS=new Set(['app/.impeccable.md','app/.npmrc','app/.nvmrc','app/.gitignore']);
 // Fixed small runtime inputs only: never traverse the venv, source caches or home.
 APP.push(...['server.py','boundary.py','requirements.lock','runtime-manifest.json','tools-list.json'].map(name=>'tools/placeroot-runtime/'+name));
-const STATE=['jobs','references','handoffs','intake'];
+APP.push(...['tools/camofox-runtime','tools/scrapling-runtime','tools/overture-runtime']);
+const STATE=['jobs','references','handoffs','intake','research'];
 const MAX_BYTES=512*1024*1024,MAX_FILES=20000;
 export const RECOVERY_OPERATIONS={
   snapshot_create:{description:'Create a bounded private idle snapshot of fixed Factory source/DB/state. Rejects active/changed/symlink/oversized inputs. No credentials/node_modules or arbitrary roots.',schema:z.object({}).strict(),readOnly:false},
@@ -66,15 +68,16 @@ export async function createSnapshot(store,{maxBytes=MAX_BYTES}={}){
     for(const e of entries){total+=e.size;if(e.size>32*1024*1024||total>maxBytes)fail('SNAPSHOT_BUDGET','Snapshot exceeds 32MiB/file or 512MiB total bound');await noLinks(e.full);const bytes=await readFile(e.full);if(bytes.length!==e.size)fail('SNAPSHOT_CHANGED','Input changed during snapshot');hashes[e.name]=hash(bytes);await writeNew(root,e.name,bytes);}
     // Official Node 24 SQLite online backup; never a raw copy of a live DB/WAL.
     // https://nodejs.org/docs/latest-v24.x/api/sqlite.html#sqlitebackupsourcedb-path-options
-    const dbPath=path.join(root,'database.sqlite3');await backup(store.db,dbPath);await chmod(dbPath,0o600);const dbBytes=await readFile(dbPath);total+=dbBytes.length;
+    const dbPath=path.join(root,'database.sqlite3');await backup(store.db,dbPath);await chmod(dbPath,0o600);
+    const privateCopy=new DatabaseSync(dbPath);let privacy,copied;try{if(hash(databaseFacts(privateCopy))!==hash(facts))fail('SNAPSHOT_CHANGED','Database changed during the online backup');privacy=sanitizeStudioSnapshot(privateCopy);copied=databaseFacts(privateCopy);}finally{privateCopy.close();}
+    const dbBytes=await readFile(dbPath);total+=dbBytes.length;
     if(dbBytes.length>32*1024*1024||total>maxBytes)fail('SNAPSHOT_BUDGET','Database exceeds per-file or remaining snapshot byte budget');hashes['database.sqlite3']=hash(dbBytes);
-    const check=new DatabaseSync(dbPath,{readOnly:true});let copied;try{copied=databaseFacts(check);}finally{check.close();}
-    idle(store);if(hash(start)!==hash(version(store))||hash(facts)!==hash(copied))fail('SNAPSHOT_CHANGED','Database changed during snapshot; captured root retained but not certified');
+    idle(store);if(hash(start)!==hash(version(store))||hash(facts)!==hash(databaseFacts(store.db)))fail('SNAPSHOT_CHANGED','Database changed during snapshot; captured root retained but not certified');
     const after=await inventory(store);if(hash(entries.map(e=>e.name))!==hash(after.map(e=>e.name)))fail('SNAPSHOT_CHANGED','Source/state membership changed during snapshot');
     for(const e of after){await noLinks(e.full);if(hash(await readFile(e.full))!==hashes[e.name])fail('SNAPSHOT_CHANGED','Source/state bytes changed during snapshot');}
     idle(store);if(hash(start)!==hash(version(store)))fail('SNAPSHOT_CHANGED','Database changed while final source/state verification was running');
     const sourceDigest=hash(Object.fromEntries(Object.entries(hashes).filter(([n])=>n.startsWith('app/'))));
-    const manifest={schema:1,id,at:now(),scope:'Factory app/database/jobs/references/handoffs only',autoRun:false,files:hashes,bytes:total,sourceDigest,tables:facts,externalLibraryFilesIncluded:false,limits:['Not off-machine backup','Original indexed customer roots outside Factory state require their own backup','No credentials, node_modules, global configuration or model stores included']};
+    const manifest={schema:1,id,at:now(),scope:'Factory app/database/jobs/references/handoffs/intake/research only',autoRun:false,files:hashes,bytes:total,sourceDigest,tables:copied,privacy,externalLibraryFilesIncluded:false,limits:['Not off-machine backup','Restricted Google payloads omitted from the copied DB; refresh metadata under the saved account policy','Original indexed customer roots outside Factory state require their own backup','No credentials, node_modules, global configuration or model stores included']};
     const bytes=Buffer.from(JSON.stringify(manifest,null,2));await writeNew(root,'manifest.json',bytes);
     return operationRecord(store,id,'snapshot',{relative,sourceDigest,manifestSha256:hash(bytes),files:Object.keys(hashes).length,bytes:total,at:manifest.at,scope:manifest.scope,private:true});
   }catch(e){operationRecord(store,`failure-${id}`,'snapshot_failure',{at:now(),errorCode:e.code||'SNAPSHOT_FAILED',partialRootRetained:true,relative});throw e;}
@@ -86,7 +89,7 @@ export async function restoreSnapshotCheck(store,id){
   if(manifest.schema!==1||manifest.id!==id||manifest.autoRun!==false||Object.keys(manifest.files).length>MAX_FILES||manifest.bytes>MAX_BYTES)fail('SNAPSHOT_CORRUPT','Snapshot contract/budget mismatch');
   for(const [name,sha] of Object.entries(manifest.files)){
     if(!FIXED_HIDDEN_INPUTS.has(name))safeRelative(name);
-    if(!/^(app\/|state\/(jobs|references|handoffs|intake)\/|database\.sqlite3$)/.test(name))fail('SNAPSHOT_CORRUPT','Snapshot has an unsupported namespace');
+    if(!/^(app\/|state\/(jobs|references|handoffs|intake|research)\/|database\.sqlite3$)/.test(name))fail('SNAPSHOT_CORRUPT','Snapshot has an unsupported namespace');
     const target=path.join(root,name);await noLinks(target);if((await lstat(target)).size>32*1024*1024||hash(await readFile(target))!==sha)fail('SNAPSHOT_CORRUPT','A snapshot file is missing, oversized or changed');
   }
   const restoreId=`restore-${randomUUID().replaceAll('-','')}`,restoreRoot=path.join(store.stateRoot,'restores',restoreId);await noLinks(restoreRoot);await mkdir(path.dirname(restoreRoot),{recursive:true,mode:0o700});await mkdir(restoreRoot,{mode:0o700});
@@ -110,7 +113,8 @@ export async function restoreSnapshotCheck(store,id){
     }
     const site=path.join(restoreRoot,'state',safeRelative(relative));if(hash(await treeHashes(site))!==j.outputs.siteDigest)badSites.push(j.id);
   }catch{badSites.push(j.id);}}
-  await writeNew(restoreRoot,'RESTORE-CONFIG.json',Buffer.from(JSON.stringify({autoRun:false,dbPath:restoredDatabase,stateRoot:path.join(restoreRoot,'state'),note:'Inspection-only new-root restore. No server/worker/scripts launched; canonical paths unchanged.'},null,2)));
+  const recoveredDb=new DatabaseSync(restoredDatabase);let studioHold;try{studioHold=holdStudioRestore(recoveredDb,{snapshotId:id});}finally{recoveredDb.close();}
+  await writeNew(restoreRoot,'RESTORE-CONFIG.json',Buffer.from(JSON.stringify({autoRun:false,dbPath:restoredDatabase,stateRoot:path.join(restoreRoot,'state'),studioHold,note:'Inspection-only new-root restore. No server/worker/scripts launched; canonical paths unchanged.'},null,2)));
   return operationRecord(store,`drill-${restoreId}`,'restore_drill',{at:now(),snapshotId:id,pass:bad.length===0&&badSites.length===0&&badSeedCaptures.length===0,autoRun:false,restoreRoot,restoredDatabase,tablesCompared:Object.keys(tables).length,artifactReferencesChecked:artifacts.length,siteReferencesChecked:jobs.length,seedCaptureReferencesChecked:seedCaptures.length,staleOrMissingSeedCaptureIds:badSeedCaptures,staleOrMissingArtifactIds:bad,staleOrMissingSiteJobIds:badSites,sourceDigest:manifest.sourceDigest,externalLibraryFilesIncluded:false,canonicalDatabaseNotRestoredOrOverwritten:true,operationalDrillRecordAppended:true,limits:manifest.limits});
 }
 export function recoverySuggestion(job){

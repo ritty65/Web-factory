@@ -18,5 +18,8 @@ jobs:
         with:
           python-version: '3.12'
       - run: npm ci
+      # Pinned parsers and the Camofox plugin harness; no native Camoufox
+      # download or paid provider request is needed for the offline suite.
+      - run: node scripts/install-studio-runtimes.mjs
       - run: npx playwright install --with-deps chromium
       - run: npm test

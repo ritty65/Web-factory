@@ -1,43 +1,47 @@
 # Private Hostinger VPS deployment
 
-These are reviewable single-operator templates, not evidence that your VPS has been configured. VPS access, domain names, DNS, certificates and the operator login are not available in this task. Do not open the app to the Internet without finishing and checking these steps. Ordinary shared website hosting cannot run the Factory backend/worker/browser stack.
+These are reviewed templates, not a completed VPS deployment. No Hostinger login, domains, certificates or provider keys were supplied. Use a VPS; ordinary shared website hosting cannot run the worker/browser stack. Read [the pilot guide](../docs/DEEPSEEK-PILOT.md) first.
 
-The implemented code is currently on `feature/reliable-intake-and-leads`, rather than the repository's original `main`. After preparing the service user/directories, obtain the reviewed source with:
+## First private installation
+
+The installer targets **Ubuntu 24.04 x86_64 with Node 24 already installed from a trusted source**. Start with at least 4 GB RAM; 8 GB gives the browsers more room. Review the branch and script before running it as root. Before an upgrade, back up state and stop the app, reader, broker and both timers. The installer rejects active services and checkout-local `.factory-state`; migrate any such existing state safely before using its `/var/lib` layout.
 
 ```sh
 git clone --branch feature/reliable-intake-and-leads https://github.com/ritty65/Web-factory.git /opt/webfactory
 cd /opt/webfactory
-npm ci
+sudo bash deploy/install-vps.sh
 ```
 
-Review the branch before deployment; the examples below do not create accounts, certificates or passwords automatically.
+The script installs locked dependencies, isolated Scrapling/DuckDB/Camofox runtimes, matching Playwright Chromium, genuine Camoufox, two unprivileged accounts, private state, an internal random reader token, services and timers. It keeps app code owned by root and read-only to the services. It does not purchase services, start a lead cohort, send messages or configure a public Nginx site. A failed browser download fails installation; inspect its actual cause before retrying.
 
-1. Use a supported Linux VPS. Install Node 24.13+, Python 3, system Chromium and its shared libraries, Nginx, a certificate client and `htpasswd` tooling from trusted OS/package sources. Install a supported Codex CLI and sign in as the **webfactory service user** using its own account. A ChatGPT subscription is not an OpenAI API key and its availability/usage limits still apply. Do not copy this task's credentials.
-2. Create a dedicated unprivileged `webfactory` user with `/var/lib/webfactory` as its private home. Make `/var/lib/webfactory/state` private and writable by that user. Put the reviewed checkout in `/opt/webfactory`, install with `npm ci`, and keep application code read-only to the service user. It must be able to run Node, Codex and the project-local `agent-browser` binary.
-3. Create `/etc/webfactory/runtime.env` from the example; set both state/database paths. Enter actual keys outside Git if using paid provider APIs. Limit file permissions to the necessary service/operator account. Initialize the DB as that service user with the same state variables. Back up any existing state before upgrades.
-4. For a private first pilot, omit both public-origin variables and use an SSH tunnel to loopback ports 8780/8781. For browser access through a domain, configure **two distinct HTTPS origins** exactly, with no trailing slash: one for the console and one for previews. The app never trusts `X-Forwarded-Host` to select an origin.
-5. Install the systemd unit after adjusting paths. Check it with `systemd-analyze verify`; verify the Chromium sandbox works as the unprivileged service user. Do not solve browser failures by running the app as root or disabling its sandbox. The service manager owns background workers; `KillMode=control-group` stops its children on shutdown.
-6. Set up DNS/TLS for the two domains. Create a strong operator password interactively with `htpasswd`, stored outside Git. Adapt the Nginx example and run `nginx -t` before reload. Both the console **and** previews require authentication. This is a single trusted-operator setup, not a multi-tenant SaaS.
-7. Verify that only HTTPS/SSH are externally reachable. Ports 8780, 8781 and 9377 remain private. Test wrong Host/Origin, missing CSRF, bad operator login, unauthenticated preview and restart behavior. Verify the production app/preview health with the configured Host headers. Never publish the operator control panel as a customer review link.
-8. Run offline tests and the acceptance checklist in docs/OPERATING-GUIDE.md, then perform one explicitly approved live test. Do not enable unattended building before live model/source behavior, budgets and failure alerts have been checked.
+- `web-factory.service` serves the private console and isolated previews on loopback 8780/8781 and owns worker children.
+- `web-factory-reader.service` runs genuine Camoufox on loopback 9378 under a separate account with no provider keys or app-state access. Persistence, telemetry and default add-ons are disabled. Admitted HTTP resources pass through the public-network guard; direct browser traffic uses a closed local proxy and WebRTC is disabled.
+- `web-factory-reader-broker.service` exposes only the authenticated narrow Factory reader operations on loopback 9377. Do not forward the upstream admin/cookie/eval API.
+- `web-factory-studio.timer` checks the explicitly authorized pilot every five minutes. It only queues work; the persistent app owns execution. An unstarted/paused pilot makes no source call.
+- `web-factory-backup.timer` creates an idle private snapshot and verifies a separate-root restore daily at 03:15 server time, retaining seven successful local snapshots.
 
-## Backups and upgrades
+Use SSH tunnels to both 8780 and 8781 for the first private session. In **Setup & API keys**, enter account keys, choose models, confirm prices/source permissions, save and test. In **Automatic drafts**, test the installed readers and explicitly start the bounded pilot only when ready. DeepSeek is the default code provider; a tested vision route is separate. ChatGPT login alone is insufficient. Keys can instead be bound through a private `/etc/webfactory/runtime.env` using the variable names in the example; do not commit that file or show its contents in diagnostics.
 
-Use the app's idle snapshot/restore checks; snapshots now include `intake/` photos. Store encrypted off-server backups with a retention policy appropriate to source contracts and customer permissions. Test restoration into a fresh separate directory; do not overwrite active state. Original uploaded photos, private proposals, source data and model caches are private. Source-provider storage rules also apply to backups; these templates do not establish contractual compliance.
+The installer leaves an existing runtime environment file unchanged. On upgrade, check that it includes both private state paths and a valid `FACTORY_BROWSER_EXECUTABLE`. The shared internal token lives in `/etc/webfactory/reader.env`, mode 0600, read by systemd for the appropriate services. Provider key files saved through the UI live only in the app's private credentials directory. Back them up separately in an approved secret store; app snapshots exclude them.
 
-On upgrade, preserve state, use the lockfile, stop owned work cleanly, restart the service, check health and run a bounded smoke. In-flight ambiguous model requests are held instead of silently regenerated. Never reset failed jobs or consumed source quotas as an upgrade step.
+## Access through domains
 
-## Optional Camofox
+For domain access configure **two distinct exact HTTPS origins** in `runtime.env`: `FACTORY_APP_ORIGIN` and `FACTORY_PREVIEW_ORIGIN`, with no paths or trailing slash. The app stays bound to loopback and does not trust forwarded headers as authority.
 
-Keep it as a separate localhost-only service with a dedicated unprivileged user and disposable profile; never import your personal browser cookies. The app currently exposes an explicit diagnostics button for localhost:9377. That does **not** enable it as the evidence reader. Before replacing `agent-browser`, verify the actual Camofox API/version, fresh-session behavior, public-only egress including redirects/subresources, bounded extraction, cleanup and source-receipt format. No login/challenge bypass, persistence assumption or stealth benefit is certified by these templates. The main workflow does not depend on Camofox being available.
+Create DNS records, obtain valid certificates and configure strong operator Basic Auth with `htpasswd`. Adapt `nginx.conf.example`, including both domains and certificate paths; test `nginx -t` before reload. Authenticate both the console and preview origin. Open only SSH/HTTPS in the firewall. Never expose 8780, 8781, 9377 or 9378 publicly, and never use the console as a public customer-review link.
 
-## Opt-in discovery timer
+Verify wrong Host/Origin, missing CSRF, bad login and unauthenticated preview all fail. Check both health routes using their exact configured Host headers. Verify the Chromium sandbox as the unprivileged service user; do not fix failures by running the app as root or disabling the sandbox. The service units use `KillMode=control-group`, and owned workers stop with the app.
 
-After explicitly enabling a schedule in Lead workspace, install `web-factory-leads.service` and `.timer` with the same private environment file and service user. Verify them, then enable/start the timer deliberately. It ticks every five minutes; the app reserves no more than one due attempt per Chicago date and uses the shared three-attempt rolling quota. Disable the schedule in the app or stop the timer to pause future work. Inspect `journalctl -u web-factory-leads.service` for held/missing-configuration outcomes. This timer does not generate websites or send outreach.
+## Recovery and operational acceptance
 
+Inspect `journalctl` for app, reader, studio-tick and backup units. A pause or missing setup requires an operator action; no external email/Slack alert delivery is configured. The dashboard records source reasons, daily receipts, spending and failed jobs. An actual provider outage must pause further work, preserve charges and require explicit resume. Uncertain paid calls retain their full reservation.
 
-### Lead source readiness
+Snapshots include supplied/researched media, jobs, app source and the SQLite ledger; restricted Google payloads are omitted from the copied database. These are private local backups, not encrypted off-server backups. Implement encrypted off-server storage and source-appropriate retention separately. The backup script removes only recognized old snapshot roots and its newly created verified disposable restore; it does not remove arbitrary directories.
 
-The timer now rotates saved areas and can optionally perform up to three Firecrawl cross-checks per day. Use the updated 120-second unit timeout. Primary discovery and secondary research have separate shared three-attempt rolling quotas. Provider failures pause the schedule; saturation pauses it once every area has returned zero new identities three times. Resuming is an explicit operator action. Inspect `npm run leads:health`, `leads_research_status`, and the service journal. Missing credentials do not reserve a daily slot. The dashboard can flag a missing completed run after 36 hours; no external notification delivery is configured.
+Restore into a new root only, using its recorded DB/state paths and `FACTORY_AUTORUN=0` for inspection. Reinstall locked runtimes from the restored source. Re-enter missing keys. The restored API workspace is paused and blocks paid calls until you reconcile total lifetime account spending, including post-backup activity. Resume explicitly on a future Chicago date. Do not overwrite canonical state, reset quotas or refund unknown charges to make a restore pass.
 
-This is scheduling software, not a certification of Google Places prospecting/storage rights. Confirm the account agreement and enforce its retention rules before sustained collection. A long-term stored lead database may need openly licensed Overture data or a provider that explicitly licenses prospecting/export. Read `docs/LEAD-SOURCING.md`. No real VPS timer or live data feed was enabled during development.
+Before calling the VPS operational, run the live 30-business/three-proposal acceptance, authenticate both origins, test browser sandboxing and run a real **72-hour** soak with source outage, service restart, pause/resume and verified restore. Simulated dates and local fixtures do not satisfy that requirement.
+
+## Earlier workflow compatibility
+
+The original `web-factory-leads` timer is retained for the legacy manual/CSV/Google research workspace. Do not enable it alongside the new API profile; its paid routes are held after profile adoption. Earlier Codex/OpenCode histories remain inspectable. The new automatic pilot uses `web-factory-studio`, not the earlier timer.
