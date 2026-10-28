@@ -39,6 +39,8 @@ Social-only and booking-only businesses can have strong opportunities but may be
 
 ## What “good website” means
 
+The operator rejected the current fictional effect demos as boring and too generic. They are engineering examples, not the accepted creative standard. The next proposed benchmark is informed by Obys, Exo Ape, Locomotive, Lusion and Bruno Simon, with desktop art direction and genuinely useful phone alternatives. [The design-quality blueprint](DESIGN-QUALITY-BLUEPRINT.md) records the current gaps and the proposed reference, media, generation and review workflow. These changes are proposed; a passing effect count does not establish design acceptance.
+
 New API proposals use the `premium-practical-v1` quality profile: three to five suitable families from magnetic buttons, sticky service cards, split text, clip reveals and draggable galleries. The homepage must use at least three; inner pages retain their own useful structure. The host owns the tested mechanics, while the generator chooses business-specific art direction. Photo-free designs do not invent a gallery. Phone, no-JS and reduced-motion fallbacks, exact-plan browser observations and private operator review remain required. See [the premium-site guide](PREMIUM-SITES.md). Animation count alone is not design acceptance.
 
 A useful mobile-first website communicates what the business does, where it serves, why a customer should trust it, and one clear next action. It has distinctive art direction, readable type, deliberate imagery and appropriate motion. It accurately represents services and published prices; unknown prices are not invented. Contact links and booking destinations work. No fake reviews, fabricated guarantees, invented team or unverifiable awards.
