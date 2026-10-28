@@ -164,7 +164,7 @@ async function executeOwnedJob(store, jobId, adapters) {
       const result = await verifyExisting({ store, job: current, stage, register, jobRoot, jobRelative, signal: controller.signal, adapters });
       store.updateJob(jobId, { state: 'review_ready', ownerPid: null, outputs: result, message: 'Current-policy QA and new exact review package ready. Site bytes unchanged; no human acceptance.' });
     } else if (current.kind === 'site') {
-      const produceSite = current.input.polishOf ? (await import('./polish.mjs')).producePolish : (await import('./production.mjs')).produceSite;
+      const produceSite = current.input.ownerIntake ? (await import('./studio-production.mjs')).produceSuppliedSite : current.input.polishOf ? (await import('./polish.mjs')).producePolish : (await import('./production.mjs')).produceSite;
       const result = await produceSite({ store, job: current, campaign, stage, register, jobRoot, jobRelative, signal: controller.signal, adapters });
       store.updateJob(jobId, { state: 'review_ready', ownerPid: null, outputs: result, message: 'Private proposal ready for actual operator visual review; not accepted, sent or published' });
     }
@@ -177,7 +177,7 @@ async function executeOwnedJob(store, jobId, adapters) {
     if (current.kind === 'reference') { const ref = store.references().find(r => r.id === current.input.referenceId); if (ref) store.saveReference({ ...ref, status: ref.captures.length ? 'prior_capture_current_audit_failed' : 'capture_failed', lastFailedAt: now(), lastError: e.code || 'REFERENCE_FAILED' }); }
     const cancelled = store.job(jobId).state === 'cancelled';
     if (current.kind === 'probe') { const { operationRecord } = await import('./pilot.mjs'); operationRecord(store, `probe-${current.id}`, 'research_probe', { status: 'blocked', candidateId: current.input.candidateId, jobId: current.id, errorCode: e.code || 'PROBE_FAILED', at: now(), websiteAbsenceEstablished: false, discoveryCertified: false }); }
-    const blocked = /^(BATCH_|SOURCE_|SEARCH_|MEDIA_|BROWSER_|INTERACTION_|CANDIDATE_CAP|QUALIFICATION|MODEL_|STALE_|QA_|DESIGN_|PROPOSAL_|REMOTE_RUNTIME|PRIVATE_DNS|DEADLINE)/.test(e.code || '');
+    const blocked = /^(INTAKE_|BATCH_|SOURCE_|SEARCH_|MEDIA_|BROWSER_|INTERACTION_|CANDIDATE_CAP|QUALIFICATION|MODEL_|STALE_|QA_|DESIGN_|PROPOSAL_|REMOTE_RUNTIME|PRIVATE_DNS|DEADLINE)/.test(e.code || '');
     store.updateJob(jobId, { state: cancelled ? 'cancelled' : blocked ? 'blocked' : 'failed', ownerPid: null, message: cancelled ? 'Cancelled; prior artifacts preserved' : e.code ? e.message : 'Worker failed; inspect setup and retained stage evidence', errorCode: e.code || 'WORKER_FAILED' });
     store.event(jobId, 'job.stopped', store.job(jobId).message, { errorCode: e.code || 'WORKER_FAILED' });
   } finally { clearInterval(monitor); }

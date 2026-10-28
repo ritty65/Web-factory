@@ -1,10 +1,15 @@
 import { spawn } from 'node:child_process';
 import { fail, FactoryError } from './contracts.mjs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+import { existsSync } from 'node:fs';
 
 // Argument arrays, no shell; a detached process group is owned only for this call.
 export function runProcess(command, args, { cwd, env = process.env, signal, timeout = 60000, maxBytes = 2 * 1024 * 1024, stdin = null } = {}) {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(new FactoryError('CANCELLED', 'Operation aborted'));
+    // Resolve only the installed reader, without replacing fixture/injected PATHs.
+    if (command === 'agent-browser' && !(env.PATH||'').split(path.delimiter).some(dir=>dir&&existsSync(path.join(dir,command)))) command = fileURLToPath(new URL('../node_modules/.bin/agent-browser', import.meta.url));
     const child = spawn(command, args, { cwd, env, shell: false, detached: true, stdio: ['pipe', 'pipe', 'pipe'] });
     let stdout = '', stderr = '', bytes = 0, failure = null, escalation;
     const stop = error => {

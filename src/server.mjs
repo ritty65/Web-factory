@@ -60,6 +60,15 @@ function prepareShutdown(server) {
   });
 }
 export async function startServer(service, { port = 8780, previewPort = 8781 } = {}) {
+  // Reverse-proxy deployment remains loopback-bound. Only explicit configured
+  // origins are trusted; forwarded headers never grant origin/CSRF authority.
+  const configuredApp=process.env.FACTORY_APP_ORIGIN,configuredPreview=process.env.FACTORY_PREVIEW_ORIGIN;
+  if(Boolean(configuredApp)!==Boolean(configuredPreview))fail('PUBLIC_ORIGIN','Configure both HTTPS app and isolated preview origins, or neither');
+  for(const value of [configuredApp,configuredPreview].filter(Boolean)){
+    let u;try{u=new URL(value);}catch{fail('PUBLIC_ORIGIN','Configured origins must be valid HTTPS origins');}
+    if(u.protocol!=='https:'||u.origin!==value||u.username||u.password||u.hostname==='localhost'||u.hostname==='127.0.0.1')fail('PUBLIC_ORIGIN','Use exact HTTPS origins without paths, credentials or trailing slash');
+  }
+  if(configuredApp&&configuredApp===configuredPreview)fail('PUBLIC_ORIGIN','App and generated previews require separate origins');
   const csrf = randomBytes(32).toString('hex'); let url, previewUrl;
   const preview = http.createServer(async (req, res) => {
     headers(res, true);
@@ -104,13 +113,14 @@ export async function startServer(service, { port = 8780, previewPort = 8781 } =
         res.setHeader('content-disposition', `${image ? 'inline' : 'attachment'}; filename="${path.basename(artifact.relative).replace(/[^a-zA-Z0-9._-]/g, '-')}"`);
         return res.end(req.method === 'HEAD' ? undefined : bytes);
       }
-      const file = ({ '/': 'index.html', '/app.js': 'app.js', '/pilot.js': 'pilot.js', '/progress.js': 'progress.js', '/batches.js': 'batches.js', '/style.css': 'style.css', '/assets/DMSans-Variable.ttf': 'assets/DMSans-Variable.ttf' })[pathname];
+      const file = ({ '/': 'index.html', '/app.js': 'app.js', '/studio.js': 'studio.js', '/pilot.js': 'pilot.js', '/progress.js': 'progress.js', '/batches.js': 'batches.js', '/style.css': 'style.css', '/assets/DMSans-Variable.ttf': 'assets/DMSans-Variable.ttf' })[pathname];
       if (!file) fail('NOT_FOUND', 'Not found');
       res.setHeader('content-type', MIME[path.extname(file)]); res.end(req.method === 'HEAD' ? undefined : await readFile(path.join(webRoot, file)));
     } catch (e) { sendError(res, e); }
   });
   server.requestTimeout = 15000; server.headersTimeout = 10000;
   const closeServers = [server, preview].map(prepareShutdown);
-  try { previewUrl = await listen(preview, previewPort); url = await listen(server, port); } catch (e) { preview.close(); server.close(); throw e; }
-  return { url, previewUrl, close: () => Promise.all(closeServers.map(close => close())) };
+  let listenUrl, previewListenUrl;
+  try { previewListenUrl=await listen(preview,previewPort);previewUrl=configuredPreview||previewListenUrl;listenUrl=await listen(server,port);url=configuredApp||listenUrl; } catch (e) { preview.close(); server.close(); throw e; }
+  return { url, previewUrl, listenUrl, previewListenUrl, close: () => Promise.all(closeServers.map(close => close())) };
 }

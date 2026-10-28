@@ -50,6 +50,7 @@ export async function initialize({ dbPath = DEFAULT_DB, stateRoot = DEFAULT_STAT
       CREATE INDEX IF NOT EXISTS factory_sales_events_case ON factory_sales_event(case_id);
       CREATE INDEX IF NOT EXISTS factory_cost_campaign ON factory_cost(campaign_id);
       CREATE TABLE IF NOT EXISTS factory_operation (id TEXT PRIMARY KEY,kind TEXT NOT NULL,record TEXT NOT NULL);
+      CREATE INDEX IF NOT EXISTS factory_operation_kind ON factory_operation(kind);
       INSERT OR IGNORE INTO factory_meta VALUES('pilot_schema','1');
       COMMIT;
     `);

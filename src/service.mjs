@@ -22,6 +22,8 @@ import { STUDY_CONTINUATION_OPERATIONS, studyContinuation } from './study-contin
 import { DESIGN_OPERATIONS, designDispatch } from './assisted-redesign.mjs';
 import { DEFAULT_FACTORY_MODEL } from './model.mjs';
 import { instagramResource } from './post-evidence.mjs';
+import { LEAD_WORKSPACE_OPERATIONS, leadWorkspaceDispatch } from './lead-workspace.mjs';
+import { INTAKE_OPERATIONS, intakeDispatch } from './studio-intake.mjs';
 
 const key = z.string().regex(/^[a-z0-9][a-z0-9-]{1,95}$/);
 const empty = z.object({}).strict();
@@ -30,6 +32,8 @@ const digest = z.string().regex(/^[a-f0-9]{64}$/);
 const feedback = z.string().trim().min(8).max(3000).refine(s => !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(s));
 const operation = (description, schema, readOnly = true) => ({ description, schema, readOnly });
 export const OPERATIONS = {
+  ...LEAD_WORKSPACE_OPERATIONS,
+  ...INTAKE_OPERATIONS,
   ...SALES_OPERATIONS,
   ...PILOT_OPERATIONS,
   ...RECOVERY_OPERATIONS,
@@ -66,7 +70,7 @@ export const OPERATIONS = {
 };
 
 export function configFromEnv() { return { ...(process.env.FACTORY_DB ? { dbPath: process.env.FACTORY_DB } : {}), ...(process.env.FACTORY_STATE ? { stateRoot: process.env.FACTORY_STATE } : {}), autoRun: process.env.FACTORY_AUTORUN !== '0' }; }
-export function createService(store, { autoRun = true, batchPrerequisites, boundaryPreflight = requireBoundary, seedCollector = async options => (await import('./seed-source.mjs')).collectSeeds(options), boundaryPreparer } = {}) {
+export function createService(store, { autoRun = true, batchPrerequisites, boundaryPreflight = requireBoundary, seedCollector = async options => (await import('./seed-source.mjs')).collectSeeds(options), boundaryPreparer, leadRequest, intakeRuntime } = {}) {
   const prerequisites = batchPrerequisites || (async settings => {
     const runtime = await doctor(store);
     const required = ['opencode', 'browser', 'python', 'sharp', 'playwright', '@axe-core/playwright'];
@@ -100,6 +104,8 @@ export function createService(store, { autoRun = true, batchPrerequisites, bound
       const op = OPERATIONS[name]; if (!op) fail('UNKNOWN_OPERATION', 'Unknown or unsupported operation');
       const parsed = op.schema.safeParse(raw); if (!parsed.success) fail('INVALID_INPUT', 'Unsupported or unexpected input fields or values', { fields: parsed.error.issues.map(i => i.path.join('.')).slice(0, 10) });
       const input = parsed.data;
+      if (LEAD_WORKSPACE_OPERATIONS[name]) return leadWorkspaceDispatch(store,name,input,{...(leadRequest?{request:leadRequest}:{})});
+      if (INTAKE_OPERATIONS[name]) { const result=await intakeDispatch(store,name,input,{...(intakeRuntime?{runtime:intakeRuntime}:{})}); if(name==='intake_build')kick();return result; }
       if (SALES_OPERATIONS[name]) return salesDispatch(store, name, input);
       if (PILOT_OPERATIONS[name]) { const result = await pilotDispatch(store, name, input); if (name === 'research_probe') kick(); return result; }
       if (RECOVERY_OPERATIONS[name]) return recoveryDispatch(store, name, input);
@@ -121,7 +127,7 @@ export function createService(store, { autoRun = true, batchPrerequisites, bound
         case 'candidate_get': return { candidate: store.candidate(input.id), jobs: store.jobs().filter(j => j.input.candidateId === input.id) };
         case 'candidate_recheck': { const candidate = store.candidate(input.id); if (candidate.assessment.state !== 'blocked') fail('RECHECK', 'Only a held candidate can use the bounded follow-up'); const job = store.createJob({ campaignId: candidate.campaignId, kind: 'discovery', input: { recheckCandidateId: candidate.id } }); kick(); return job; }
         case 'candidate_evidence_import': { const c = store.candidate(input.id); for (const key of input.evidence.observationJobIds || []) { const job = store.job(key); if (job.campaignId !== c.campaignId || !['discovery', 'source'].includes(job.kind)) fail('SOURCE_BINDING', 'Observation jobs must belong to this campaign'); } return store.replaceCandidate(input.id, input.evidence, 'external_evidence_import'); }
-        case 'library_promote': { const { promoteReview } = await import('./promotion.mjs'); return promoteReview(store, input.id); }
+        case 'library_promote': { if(store.job(input.id).input.ownerIntake)fail('INTAKE_WORKFLOW','Use the exact supplied-concept review ZIP. Legacy library promotion requires a separately qualified research candidate.'); const { promoteReview } = await import('./promotion.mjs'); return promoteReview(store, input.id); }
         case 'review_note': { await exactReview(input); return store.reviewNote(input.id, input.siteDigest, input.note); }
         case 'polish_site': {
           const parent = store.job(input.id);
@@ -142,13 +148,16 @@ export function createService(store, { autoRun = true, batchPrerequisites, bound
           const result = store.requestDirectionRepair(job.id, input.selectionDigest); kick(); return result;
         }
         case 'revise_site': {
-          const parent = await exactReview(input), c = store.candidate(parent.input.candidateId);
+          const parent = await exactReview(input);
+          if(parent.input.ownerIntake)fail('INTAKE_WORKFLOW','Edit and save a new supplied brief version in Business intake, then explicitly build it. The prior proposal stays unchanged.');
+          const c = store.candidate(parent.input.candidateId);
           if (c.assessment.state !== 'qualified') fail('QUALIFICATION', 'Current evidence must still qualify before a revision');
           if (input.reuseStudyJobId) { const { readCreativeSeed } = await import('./craft.mjs'); await readCreativeSeed({ store, sourceJobId: input.reuseStudyJobId, parent, feedback: input.feedback, candidate: c }); }
           const job = store.createJob({ campaignId: parent.campaignId, kind: 'site', input: { candidateId: c.id, parentSiteJobId: parent.id, parentSiteDigest: input.siteDigest, feedback: input.feedback, craftVersion: 2, ...(input.reuseStudyJobId ? { reuseStudyJobId: input.reuseStudyJobId } : {}) } }); kick(); return job;
         }
         case 'qa_run': {
           const parent = store.job(input.id); if (parent.kind !== 'site' || !parent.outputs.siteRelative || parent.state === 'running') fail('QA_INPUT', 'Choose a stopped/finished site proposal with staged bytes');
+          if(parent.input.ownerIntake)fail('INTAKE_WORKFLOW','This supplied proposal has its own exact QA package. Edit the brief and build a new version for changes; legacy lead QA is a separate workflow.');
           let siteDigest = parent.outputs.siteDigest;
           if (!siteDigest) {
             if (!parent.outputs.qaRelative) fail('QA_INPUT', 'A frozen proposal/QA report is required before a read-only recheck');

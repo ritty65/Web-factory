@@ -4,6 +4,7 @@ import { publicUrl, hash, now, fail, FactoryError } from './contracts.mjs';
 import { runProcess } from './process.mjs';
 import { resolvePublic, safeFetch } from './network.mjs';
 import { noLinks } from './db.mjs';
+import { chromium } from 'playwright';
 import { stablePostUrl } from './evidence-context.mjs';
 import {postEvidenceScript,normalizePostEvidence,requiresPostEvidence,postCaptionContent,instagramResource,postFormatDiagnosticsScript,normalizePostFormatDiagnostics} from './post-evidence.mjs';
 
@@ -98,7 +99,7 @@ export async function inspectSource(urlValue, { directory, signal, capture = fal
   // subresources, worker traffic and WebRTC before scripts run. Browser-level only,
   // never an OS firewall. Fixed platforms are opt-in; arbitrary sites stay pinned.
   const domains = linkedHosts ? linkedHosts.join(',')+(threads.includes(url.hostname)?',*.fbcdn.net,*.cdninstagram.com':'') : social ? 'instagram.com,*.instagram.com,facebook.com,*.facebook.com,*.fbcdn.net,*.cdninstagram.com' : `${url.hostname},*.${url.hostname.replace(/^www\./, '')},fonts.googleapis.com,fonts.gstatic.com${redirectDomain}`;
-  const base = ['--session', session, '--executable-path', process.env.FACTORY_BROWSER_EXECUTABLE || '/usr/bin/chromium', '--allowed-domains', domains, '--json'];
+  const base = ['--session', session, '--executable-path', process.env.FACTORY_BROWSER_EXECUTABLE || chromium.executablePath(), '--allowed-domains', domains, '--json'];
   const run = async args => (await runProcess('agent-browser', [...base, ...args], { signal, timeout: 40000, maxBytes: 400000 })).stdout;
   let data, stage = 'open';
   try {

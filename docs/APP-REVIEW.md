@@ -2,6 +2,8 @@
 
 Reviewed 28 October 2026 against the uploaded ZIP and the imported code. This is a source/code, offline-test and local-UI review. The original private database, customer media, generated websites, model credentials and historical operational receipts were not included. Statements about past live results in old documents are historical claims, not reproduced outcomes.
 
+This is the original import assessment. The subsequent implemented flows and current acceptance evidence are in [OPERATING-GUIDE.md](OPERATING-GUIDE.md) and [IMPLEMENTATION-VALIDATION.md](IMPLEMENTATION-VALIDATION.md).
+
 ## Assessment
 
 Keep this codebase and improve it incrementally. It is a substantial **single-operator local production workbench**, with unusually explicit evidence, job accounting and exact-version review. It is not yet a portable autonomous lead-to-customer business. Its strongest next step is one usable assisted workflow and one measured real proposal, before expanding automated acquisition.

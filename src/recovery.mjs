@@ -14,9 +14,12 @@ import {validateSeedReceipt} from './seeds.mjs';
 
 const SOURCE=fileURLToPath(new URL('../',import.meta.url));
 const APP=['src','web','runtime','workers','tests','scripts','bin','docs','README.md','AGENTS.md','.impeccable.md','package.json','package-lock.json','opencode.json','qa.mjs'];
+APP.push('deploy');
+APP.push('.npmrc','.nvmrc','.gitignore');
+const FIXED_HIDDEN_INPUTS=new Set(['app/.impeccable.md','app/.npmrc','app/.nvmrc','app/.gitignore']);
 // Fixed small runtime inputs only: never traverse the venv, source caches or home.
 APP.push(...['server.py','boundary.py','requirements.lock','runtime-manifest.json','tools-list.json'].map(name=>'tools/placeroot-runtime/'+name));
-const STATE=['jobs','references','handoffs'];
+const STATE=['jobs','references','handoffs','intake'];
 const MAX_BYTES=512*1024*1024,MAX_FILES=20000;
 export const RECOVERY_OPERATIONS={
   snapshot_create:{description:'Create a bounded private idle snapshot of fixed Factory source/DB/state. Rejects active/changed/symlink/oversized inputs. No credentials/node_modules or arbitrary roots.',schema:z.object({}).strict(),readOnly:false},
@@ -51,7 +54,7 @@ async function inventory(store){
 function idle(store){if(store.db.prepare("SELECT count(*) n FROM factory_job WHERE state IN ('queued','running')").get().n)fail('SNAPSHOT_BUSY','Wait for queued/running jobs to stop before a consistent snapshot');}
 function version(store){return {data:store.db.prepare('PRAGMA data_version').get().data_version,changes:store.db.prepare('SELECT total_changes() n').get().n};}
 async function writeNew(root,name,bytes){
-  if(name!=='app/.impeccable.md')safeRelative(name);
+  if(!FIXED_HIDDEN_INPUTS.has(name))safeRelative(name);
   const target=path.join(root,name);await noLinks(target);await mkdir(path.dirname(target),{recursive:true,mode:0o700});await writeFile(target,bytes,{flag:'wx',mode:0o600});
 }
 export async function createSnapshot(store,{maxBytes=MAX_BYTES}={}){
@@ -82,8 +85,8 @@ export async function restoreSnapshotCheck(store,id){
   const root=path.join(store.stateRoot,snap.relative);await noLinks(root);const mBytes=await readFile(path.join(root,'manifest.json'));if(hash(mBytes)!==snap.manifestSha256)fail('SNAPSHOT_CORRUPT','Snapshot manifest changed');const manifest=JSON.parse(mBytes);
   if(manifest.schema!==1||manifest.id!==id||manifest.autoRun!==false||Object.keys(manifest.files).length>MAX_FILES||manifest.bytes>MAX_BYTES)fail('SNAPSHOT_CORRUPT','Snapshot contract/budget mismatch');
   for(const [name,sha] of Object.entries(manifest.files)){
-    if(name!=='app/.impeccable.md')safeRelative(name);
-    if(!/^(app\/|state\/(jobs|references|handoffs)\/|database\.sqlite3$)/.test(name))fail('SNAPSHOT_CORRUPT','Snapshot has an unsupported namespace');
+    if(!FIXED_HIDDEN_INPUTS.has(name))safeRelative(name);
+    if(!/^(app\/|state\/(jobs|references|handoffs|intake)\/|database\.sqlite3$)/.test(name))fail('SNAPSHOT_CORRUPT','Snapshot has an unsupported namespace');
     const target=path.join(root,name);await noLinks(target);if((await lstat(target)).size>32*1024*1024||hash(await readFile(target))!==sha)fail('SNAPSHOT_CORRUPT','A snapshot file is missing, oversized or changed');
   }
   const restoreId=`restore-${randomUUID().replaceAll('-','')}`,restoreRoot=path.join(store.stateRoot,'restores',restoreId);await noLinks(restoreRoot);await mkdir(path.dirname(restoreRoot),{recursive:true,mode:0o700});await mkdir(restoreRoot,{mode:0o700});

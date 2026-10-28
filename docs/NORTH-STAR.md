@@ -72,3 +72,7 @@ Confirmed: local service businesses are the initial customer segment. Proposed: 
 ## Definition of the next milestone
 
 On a clean checkout, a developer can install and run the app; an operator can prepare one business with no hand-authored internal JSON; all missing prerequisites are clear; the system creates one real private proposal through configured integrations; the operator reviews desktop/mobile and requests or approves an exact version; costs, sources and errors remain visible. No end-to-end claim is complete until this real pilot succeeds.
+
+## Implementation update: supplied-content MVP
+
+The app now implements Business intake with ordinary fields/photos, frozen private-build proofs, a Codex proposer adapter, source-preserving manual/CSV lead intake, six declared evidence checks, an optional Google Places adapter and opt-in daily Chicago-time discovery. These form an assisted path alongside the original research-led workflow. The new path produces one five-page proposal per explicit version; it does not implement three opening alternatives or automatic source qualification. VPS HTTPS/origin/service templates are provided. Live provider/model acceptance and an actual VPS deployment remain prerequisites for operational claims. See OPERATING-GUIDE.md and IMPLEMENTATION-VALIDATION.md.

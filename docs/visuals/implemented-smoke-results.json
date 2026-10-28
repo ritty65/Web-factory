@@ -1,0 +1,54 @@
+{
+  "kind": "actual-app-fictional-data-no-live-model-or-source",
+  "views": [
+    {
+      "view": "intake",
+      "width": 1440,
+      "overflow": false,
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "view": "intake",
+      "width": 390,
+      "overflow": false,
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "view": "intake",
+      "width": 320,
+      "overflow": false,
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "view": "opportunities",
+      "width": 1440,
+      "overflow": false,
+      "violations": [],
+      "incomplete": [
+        "duplicate-id-aria"
+      ]
+    },
+    {
+      "view": "opportunities",
+      "width": 390,
+      "overflow": false,
+      "violations": [],
+      "incomplete": [
+        "duplicate-id-aria"
+      ]
+    },
+    {
+      "view": "opportunities",
+      "width": 320,
+      "overflow": false,
+      "violations": [],
+      "incomplete": [
+        "duplicate-id-aria"
+      ]
+    }
+  ],
+  "pageErrors": []
+}

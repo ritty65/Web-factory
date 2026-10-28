@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { safeFetch } from './network.mjs';
+import { providerHttp } from './provider-http.mjs';
 import { inspectSource } from './browser.mjs';
 import { publicUrl, text, fail, hash, now } from './contracts.mjs';
 export function normalizeSearchResults(items) {
@@ -48,7 +48,7 @@ export function relevantDiscoveryEvidence(query, results) {
   });
 }
 // REST contract: https://docs.firecrawl.dev/agent-source-of-truth/curl#search
-export async function firecrawlSearch(query, { apiKey = process.env.FIRECRAWL_API_KEY, request = safeFetch, signal } = {}) {
+export async function firecrawlSearch(query, { apiKey = process.env.FIRECRAWL_API_KEY, request = providerHttp, signal } = {}) {
   if (!apiKey) fail('SEARCH_CONFIGURATION', 'Optional Firecrawl search needs configuration; no new paid provider was connected');
   const response = await request('https://api.firecrawl.dev/v2/search', { signal, method: 'POST', redirects: 0, maxBytes: 1000000, body: JSON.stringify({ query: text(query, 'Search query', 300), limit: 5, sources: [{ type: 'web' }], country: 'US' }), headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` } });
   if (response.status !== 200) fail('SEARCH_FAILED', 'Search provider request failed or authentication is unavailable');

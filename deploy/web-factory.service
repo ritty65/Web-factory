@@ -1,0 +1,27 @@
+[Unit]
+Description=Web Factory private operator workspace
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=webfactory
+Group=webfactory
+WorkingDirectory=/opt/webfactory
+EnvironmentFile=/etc/webfactory/runtime.env
+ExecStart=/usr/bin/env node /opt/webfactory/src/cli.mjs serve
+Restart=on-failure
+RestartSec=5
+KillMode=control-group
+TimeoutStopSec=30
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/webfactory
+# Browser/model children need subprocesses; do not add a syscall policy that
+# silently disables Chromium. The Node servers bind only to loopback.
+
+[Install]
+WantedBy=multi-user.target

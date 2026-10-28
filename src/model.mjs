@@ -10,7 +10,7 @@ import { withResearcherServer } from './researcher-server.mjs';
 
 // Native CLI --model selects provider/model; never inherit the global default.
 // Contract: https://opencode.ai/v2/docs/cli/ and installed `opencode run --help`.
-export const DEFAULT_FACTORY_MODEL = 'openai/gpt-6.1-sol-fast';
+export const DEFAULT_FACTORY_MODEL = process.env.FACTORY_MODEL_BACKEND === 'codex' ? 'codex/default' : 'openai/gpt-6.1-sol-fast';
 
 export async function modelRequestIdentity({ role, prompt, model, files = [] }) {
   model ||= DEFAULT_FACTORY_MODEL;
@@ -40,6 +40,14 @@ export async function requestModel({ role, prompt, directory, model, signal, sou
   args.push(prompt);
   const started = Date.now();
   if (batch) reserveBatchUsage(budget.store, budget.jobId, 'modelRequests');
+  if (model.startsWith('codex/')) {
+    if (role !== 'proposer') fail('MODEL_CONFIGURATION', 'The Codex adapter supports proposals only; research still needs its explicit source-tool adapter');
+    const { codexProposal } = await import('./codex-model.mjs');
+    const result = await codexProposal({ prompt, directory, files, signal, timeout, model });
+    const saved = { requestId, role, modelSelection: model, at: now(), elapsedMs: Date.now() - started, ...result };
+    await writeFile(cache, JSON.stringify(saved), { flag: 'wx', mode: 0o600 });
+    return saved;
+  }
   if(researchLimit!==null&&(!Number.isInteger(researchLimit)||researchLimit<1||researchLimit>100))fail('RESEARCH_SCHEMA','Invalid host research candidate limit.');
   const env = { ...process.env, PWD: cwd, FACTORY_RESEARCH_REQUEST:researchLimit===null?'':requestId, FACTORY_RESEARCH_LIMIT:researchLimit===null?'':String(researchLimit), ...(sourcesDirectory ? { FACTORY_SOURCES: sourcesDirectory } : {}), ...(batch && sourcesDirectory ? { FACTORY_DB: budget.store.dbPath, FACTORY_STATE: budget.store.stateRoot, FACTORY_SOURCE_JOB: budget.jobId } : {}) };
   const launch = ({ url, env: launchEnv = env, signal: launchSignal = signal, timeout: remaining = timeout } = {}) => runProcess('opencode', url ? ['run', '--server', url, ...args.slice(2)] : args, { cwd, env: launchEnv, signal: launchSignal, timeout: remaining, maxBytes: 3 * 1024 * 1024 });

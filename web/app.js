@@ -2,6 +2,8 @@
 const $ = s => document.querySelector(s);
 const state = { data: null, session: null, selectedJob: null, filter: '', query: '', kind: 'site', reviewDevice: 1440, reviewPage: 'index', drafts: {}, doctor: null, refreshing: false };
 const views = { jobs: ['RESEARCH. CRAFT. REVIEW.', 'Production desk', 'From a real business to a considered website. With the evidence attached.'], businesses: ['THE BUSINESS, BEFORE THE BUILD.', 'People & places', 'Existing work and newly researched candidates. Facts, unknowns and real sources stay together.'], references: ['PRINCIPLES, NOT TEMPLATES.', 'A reference shelf', 'Your work, inspected in the browser. Reuse the craft, never just recolor the composition.'], assets: ['REAL SUBJECTS. LOCAL FILES.', 'The asset room', 'Business-posted photographs, original provenance and private-preview use. No hotlinks, no invented portfolios.'], integrations: ['CONNECTED, OR HONESTLY NOT.', 'Behind the desk', 'One local backend for this app, the CLI and OpenCode. Dependencies stay visible.'] };
+views.intake=['','Business intake','A practical brief, your photographs, and one private proposal.'];
+views.opportunities=['','Lead workspace','Source-backed pointers, explicit evidence and clear next actions.'];
 views.sales=['BUILD THE WORK. EARN THE BUSINESS.','Sales desk','The next actual action, the complete costs, and reported outcomes. No invented pipeline.'];
 views.operations=['CONTROLLED. RECOVERABLE. HONEST.','Operations','Know the blockers. Inspect the history. Restore into a new root before you trust the backup.'];
 views.start=['','Find your next website customer','Find leads, choose one business, then review its private website.'];
@@ -26,7 +28,9 @@ async function renewSession(rejectedCsrf) {
     const session = await response.json();
     let preview;
     try { preview = new URL(session?.previewOrigin); } catch { /* invalid session below */ }
-    if (typeof session?.csrf !== 'string' || !/^[a-f0-9]{64}$/.test(session.csrf) || !preview || preview.protocol !== 'http:' || preview.hostname !== '127.0.0.1' || preview.origin !== session.previewOrigin) throw new Error('Invalid local session response');
+    const localPreview=preview?.protocol==='http:'&&preview.hostname==='127.0.0.1';
+    const hostedPreview=location.protocol==='https:'&&preview?.protocol==='https:'&&preview.origin!==location.origin&&!preview.username&&!preview.password;
+    if (typeof session?.csrf !== 'string' || !/^[a-f0-9]{64}$/.test(session.csrf) || !preview || !(localPreview||hostedPreview) || preview.origin !== session.previewOrigin) throw new Error('Invalid local session response');
     state.session = session;
     return session;
   })().finally(() => { sessionRefresh = null; });
@@ -281,7 +285,7 @@ function renderReviewWorkspace(record,{simple=false}={}) {
       const next = await action('revise_site', { id: job.id, siteDigest: job.outputs.siteDigest, feedback: textarea.value }, 'One explicit isolated revision queued. Previous version preserved.', e);
       if (next) { state.kind = 'site'; state.filter = ''; state.query = ''; await inspectJob(next); }
     }, 'primary')), p('Two requested revision jobs maximum per business, including stopped work. No automatic acceptance, outreach or publication.', 'meta'));
-    if(simple){form.querySelector('button[type=button]')?.remove();form.querySelector('p.muted').textContent='Tell us what should change. Saving feedback does not rebuild, accept or publish this website.';form.querySelector('p.meta').textContent='Feedback stays attached to this exact version. Any further build needs separate authority.';}
+    if(simple||job.input.ownerIntake){form.querySelector('button[type=button]')?.remove();form.querySelector('p.muted').textContent='Tell us what should change. Saving feedback does not rebuild, accept or publish this website.';form.querySelector('p.meta').textContent=job.input.ownerIntake?'To change this supplied concept, edit and save a new brief version in Business intake. Prior site bytes remain unchanged.':'Feedback stays attached to this exact version. Any further build needs separate authority.';}
     root.append(form);
   }
   if (!simple && job.state === 'blocked' && job.outputs.qaPass === true && job.outputs.reviewStatus === 'creative_rework_required') {
@@ -361,15 +365,17 @@ function renderIntegrations() {
 function render() {
   if (!state.data) return;
   const [route] = location.hash.slice(1).split('/'), view = views[route] ? route : 'start';
-   $('#new-campaign').hidden = ['start','leads','inbox','review','sales','operations'].includes(view);
-   if (!['start','leads','inbox','review'].includes(view)) $('#advanced-nav').open = true;
+   $('#new-campaign').hidden = ['start','leads','inbox','review','sales','operations','intake','opportunities'].includes(view);
+   if (!['start','leads','inbox','review','intake','opportunities'].includes(view)) $('#advanced-nav').open = true;
   $('#main').dataset.view = view;
   const [eyebrow, title, subtitle] = views[view]; $('#eyebrow').textContent = eyebrow; $('#title').replaceChildren(document.createTextNode(title), node('span', {}, '.')); $('#subtitle').textContent = subtitle; $('#crumb').textContent = view.toUpperCase();
   document.title = `Simulacra Factory · ${title}`;
   document.querySelectorAll('nav[aria-label="Factory"] a').forEach(a => { if (a.hash === '#' + (view==='review'?'inbox':view)) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
   const context={node,p,button,badge,link,op,action,state,render,refresh,stamp,announce,empty,sectionTop};
-   const renderers = { review:renderSimpleReview, leads:()=>window.FactoryBatches.leads(context), start:()=>window.FactoryBatches.home(context), inbox:()=>window.FactoryBatches.inbox(context), jobs: renderJobs, businesses: renderBusinesses, references: renderReferences, assets: renderAssets, integrations: renderIntegrations, sales:()=>window.FactoryPilot.sales(context), operations:()=>window.FactoryPilot.operations(context) };
-  $('#content').replaceChildren(renderers[view]()); $('#content').setAttribute('aria-busy', 'false'); $('#freshness').textContent = `Ledger read ${stamp(state.data.at)}`; window.FactoryReady = true;
+   const renderers = { intake:()=>window.FactoryStudio.intake(context), opportunities:()=>window.FactoryStudio.leads(context), review:renderSimpleReview, leads:()=>window.FactoryBatches.leads(context), start:()=>window.FactoryBatches.home(context), inbox:()=>window.FactoryBatches.inbox(context), jobs: renderJobs, businesses: renderBusinesses, references: renderReferences, assets: renderAssets, integrations: renderIntegrations, sales:()=>window.FactoryPilot.sales(context), operations:()=>window.FactoryPilot.operations(context) };
+  const rendered=renderers[view]();
+  if(view==='start')rendered.prepend(node('section',{class:'block studio-start'},node('h2',{},'Start with one real business'),p('Use a simple supplied-content brief, or inspect unverified lead pointers before choosing a business. These paths start nothing until you explicitly ask.'),node('div',{class:'files'},link('Prepare a business brief','#intake','primary'),link('Open the lead workspace','#opportunities','secondary'))));
+  $('#content').replaceChildren(rendered); $('#content').setAttribute('aria-busy', 'false'); $('#freshness').textContent = `Ledger read ${stamp(state.data.at)}`; window.FactoryReady = true;
 }
 async function refresh() {
   if (state.refreshing) return false;

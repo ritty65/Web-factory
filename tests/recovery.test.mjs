@@ -90,3 +90,12 @@ test('historical QA records resolve only their exact same-campaign parent site i
   store.updateJob(qa.id,{outputs:{parentSiteJobId:site.id,siteDigest:'0'.repeat(64)}});
   const bad=await service.dispatch('snapshot_create',{}),held=await service.dispatch('snapshot_restore_check',{id:bad.id});assert.equal(held.pass,false);assert.deepEqual(held.staleOrMissingSiteJobIds,[qa.id]);
 });
+
+test('private intake originals and dependency-install controls survive a fresh-root restore',async t=>{
+  const {store,service}=await salesFixture(t);
+  const relative='intake/photos/photo-fictional/original.jpg';await mkdir(path.dirname(path.join(store.stateRoot,relative)),{recursive:true});await writeFile(path.join(store.stateRoot,relative),'Fictional private bytes, not a real photograph');
+  const snap=await service.dispatch('snapshot_create',{}),manifest=JSON.parse(await readFile(path.join(store.stateRoot,snap.relative,'manifest.json'),'utf8'));
+  for(const name of ['.npmrc','.nvmrc','.gitignore'])assert.ok(manifest.files['app/'+name]);assert.ok(manifest.files['state/'+relative]);
+  const drill=await service.dispatch('snapshot_restore_check',{id:snap.id});assert.equal(drill.pass,true);assert.equal(await readFile(path.join(drill.restoreRoot,'state',relative),'utf8'),'Fictional private bytes, not a real photograph');assert.equal(await readFile(path.join(drill.restoreRoot,'app/.npmrc'),'utf8'),await readFile(new URL('../.npmrc',import.meta.url),'utf8'));
+  assert.equal(Object.keys(manifest.files).some(n=>n==='app/.env'||n.includes('/credentials/')),false);
+});

@@ -1,0 +1,17 @@
+[Unit]
+Description=Web Factory opt-in daily lead discovery tick
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=webfactory
+Group=webfactory
+WorkingDirectory=/opt/webfactory
+EnvironmentFile=/etc/webfactory/runtime.env
+ExecStart=/usr/bin/env node /opt/webfactory/scripts/scheduled-leads.mjs
+TimeoutStartSec=45
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/webfactory

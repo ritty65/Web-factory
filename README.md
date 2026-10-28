@@ -2,7 +2,7 @@
 
 A local operator workspace for finding suitable local service businesses, verifying their evidence, producing private website proposals, and reviewing the exact output before any customer delivery.
 
-**Current status:** imported from the uploaded source snapshot dated 2026-10-28 and made portable for development. The local UI, database and offline tests can run without a paid account. Live research and AI site generation still need the external model/reader integrations. This is not a hosted SaaS or a proven autonomous sales machine.
+**Current status:** the imported app now includes a real guided Business intake, private supplied-photo uploads, a lead/evidence workspace, manual/CSV intake, an optional Google Places adapter, opt-in daily discovery and a ChatGPT/Codex proposal adapter. See [the operating guide](docs/OPERATING-GUIDE.md). Offline tests and local browser paths are verified. Live model access, real provider yield and VPS deployment remain separate acceptance checks; they have not been certified by fixture tests.
 
 ## Start here
 
@@ -11,7 +11,10 @@ A local operator workspace for finding suitable local service businesses, verify
 - [Interactive proposed UI](docs/UX-PROTOTYPE.html) — open this file in a browser; illustrative data only.
 - [Prioritized implementation plan](docs/ROADMAP.md)
 - [Lead sourcing and Apollo decision](docs/LEAD-SOURCING.md)
-- [Validation results and limits](docs/VALIDATION.md)
+- [How to use the implemented flows](docs/OPERATING-GUIDE.md)
+- [Private Hostinger VPS setup](deploy/README.md)
+- [Original import validation results and limits](docs/VALIDATION.md)
+- [Implementation validation](docs/IMPLEMENTATION-VALIDATION.md)
 
 ## Run locally
 
@@ -39,9 +42,9 @@ If Chromium is already installed, set `FACTORY_BROWSER_EXECUTABLE` to its absolu
 
 ## Live operation prerequisites
 
-The current generation adapter shells out to an external `opencode` CLI with the exact model route in `src/model.mjs`. Its CLI flags, worker config schema, authentication and model availability must be verified before real use. The public page reader also needs `agent-browser`. Neither integration is installed or authenticated by this source import. Firecrawl is optional search, not a replacement for the page reader. The optional PlaceRoot connector has a separately pinned Python runtime and remains Houston-specific.
+For the new supplied-content flow, set `FACTORY_MODEL_BACKEND=codex` and sign in to the supported Codex CLI as the operator account. The adapter uses a read-only proposer with large prompts sent through stdin and no unrelated lead API keys in its environment. The project-local `agent-browser` dependency supplies the existing public reader. The legacy research-led flow still uses its original OpenCode/source-MCP contract; the Codex proposer is not a silent substitute for that research worker. Firecrawl remains optional search. PlaceRoot remains separately installed and Houston-specific.
 
-Start with one assisted business dossier and one private site, after those dependencies are working. The existing assisted UI expects a structured evidence JSON file; it is **not** a simple business-name upload. Do not click research/build expecting those missing integrations to work. See the roadmap for a guided intake wizard and provider preflight.
+Start with **Business intake** and one real supplied brief. Save starts nothing; Build requires explicit confirmations, an exact version and model/browser prerequisites. The legacy evidence-JSON import remains for its original stricter source contract. Use **Lead workspace** for manual/CSV pointers or an explicitly authorized Google Places search. Daily discovery starts disabled and needs both an adopted schedule and a separately installed private VPS timer.
 
 ## Data and publication
 
