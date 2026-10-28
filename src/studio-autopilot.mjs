@@ -6,6 +6,7 @@ import {studioSpend} from './studio-budget.mjs';
 import {studioHttp} from './studio-http.mjs';
 import {discoverPointers,refreshPointer,investigatePointer,retainResearchMedia,purgeExpiredStudioData,testReaders} from './studio-leads.mjs';
 import {websiteSurface} from './lead-screening.mjs';
+import {PREMIUM_PROFILE} from './effects-contract.mjs';
 
 const key=z.string().regex(/^[a-z0-9][a-z0-9-]{7,95}$/);
 const op=(description,schema,readOnly=false)=>({description,schema,readOnly});
@@ -148,9 +149,10 @@ export function queueConcept(store,pilot,assessment,date){
   return atomic(store,()=>{
     const current=pilotRecord(store);if(!current?.enabled||current.settingsDigest!==pilot.settingsDigest||assessment.state!=='source_checked')fail('AUTOPILOT_BINDING','Only the current enabled source-checked pilot may queue a concept');
     const sites=store.jobs().filter(j=>j.input.apiConcept?.cohortId===pilot.cohortId);if(sites.length>=3||sites.some(j=>j.input.apiConcept.date===date))fail('PILOT_BUILD_CAP','The daily or total proposal allowance is already consumed');
-    const digest=hash({candidate:assessment.candidate,media:assessment.media,assessmentDigest:hash(assessment),settingsDigest:pilot.settingsDigest}),proofId='api-proof-'+hash({assessment:assessment.id,date}).slice(0,24);
-    const job=store.createJob({campaignId:pilot.campaignId,kind:'site',input:{apiConcept:{proofId,digest,cohortId:pilot.cohortId,assessmentId:assessment.id,date},modelSelection:'api/deepseek-first'}});
-    saveRecord(store,proofId,'studio_concept_proof',{jobId:job.id,campaignId:job.campaignId,candidate:assessment.candidate,media:assessment.media,assessmentId:assessment.id,assessmentDigest:hash(assessment),settingsDigest:pilot.settingsDigest,digest,publicRelease:false});
+    const designProfile=PREMIUM_PROFILE;
+    const digest=hash({candidate:assessment.candidate,media:assessment.media,assessmentDigest:hash(assessment),settingsDigest:pilot.settingsDigest,designProfile}),proofId='api-proof-'+hash({assessment:assessment.id,date}).slice(0,24);
+    const job=store.createJob({campaignId:pilot.campaignId,kind:'site',input:{apiConcept:{proofId,digest,cohortId:pilot.cohortId,assessmentId:assessment.id,date},modelSelection:'api/deepseek-first',designProfile}});
+    saveRecord(store,proofId,'studio_concept_proof',{jobId:job.id,campaignId:job.campaignId,candidate:assessment.candidate,media:assessment.media,assessmentId:assessment.id,assessmentDigest:hash(assessment),settingsDigest:pilot.settingsDigest,designProfile,digest,publicRelease:false});
     return {queued:true,jobId:job.id};
   });
 }

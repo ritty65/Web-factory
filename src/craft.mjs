@@ -9,12 +9,14 @@ import { settleImages, sweepPage } from './qa-motion.mjs';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 
-export async function stageRuntime(root) {
+export async function stageRuntime(root, {designProfile = null} = {}) {
+  if(designProfile!==null&&designProfile!=='premium-practical-v1')fail('DESIGN_PROFILE','Unknown runtime design profile');
   const files = [
     ['assets/factory-motion.js', '../runtime/motion.js'], ['assets/factory-motion.css', '../runtime/motion.css'],
     ['assets/fonts/BowlbyOneSC-Regular.ttf', '../runtime/fonts/BowlbyOneSC-Regular.ttf'], ['assets/fonts/OFL-Bowlby.txt', '../runtime/fonts/OFL.txt'],
     ['assets/fonts/DMSans-Variable.ttf', '../web/assets/DMSans-Variable.ttf'], ['assets/fonts/OFL-DMSans.txt', '../web/assets/OFL-DMSans.txt'],
   ];
+  if (designProfile === 'premium-practical-v1') files.push(['assets/factory-effects.js', '../runtime/effects.js'], ['assets/factory-effects.css', '../runtime/effects.css']);
   for (const [name, source] of files) {
     const target = path.join(root, name); await noLinks(target); await mkdir(path.dirname(target), { recursive: true, mode: 0o750 });
     const bytes = await readFile(new URL(source, import.meta.url));
@@ -80,14 +82,14 @@ export function reviewImages(qa) {
   for (const width of [1280, 390]) { const c = captures.find(c => c.kind === 'scroll-intermediate' && c.viewport?.[0] === width); if (c) result.push(c); }
   return result;
 }
-export async function renderStudies({ studies, media, candidate, jobRoot, signal, launchBrowser = () => chromium.launch({ executablePath: process.env.FACTORY_BROWSER_EXECUTABLE, headless: true }) }) {
+export async function renderStudies({ studies, media, candidate, jobRoot, signal, designProfile = null, launchBrowser = () => chromium.launch({ executablePath: process.env.FACTORY_BROWSER_EXECUTABLE, headless: true }) }) {
   studies = validateStudies({ studies }); const output = { studies: [], captures: [], limitations: 'Opening + supporting-section studies only; not complete five-page QA, human selection or acceptance' };
   for (let index = 0; index < studies.length; index++) {
     if (signal?.aborted) fail('CANCELLED', 'Direction rendering cancelled');
     const relative = `directions/study-${index}/site`, siteRoot = path.join(jobRoot, relative);
     await mkdir(path.join(siteRoot, 'assets/photos'), { recursive: true, mode: 0o750 });
     for (const m of media) await copyFile(path.join(jobRoot, safeRelative(m.web_file)), path.join(siteRoot, safeRelative(m.web_file.replace(/^site\//, ''))));
-    await stageRuntime(siteRoot); await stageProposal(siteRoot, studies[index], { pageCount: 1 });
+    await stageRuntime(siteRoot, {designProfile}); await stageProposal(siteRoot, studies[index], { pageCount: 1 });
     const audit = await staticAudit(siteRoot, { candidate, media, pageCount: 1 });
     const record = { index, name: studies[index].name, relative, siteDigest: hash(await treeHashes(siteRoot)), pass: audit.pass, issues: [...audit.issues], viewports: [] };
     output.studies.push(record); if (!audit.pass) continue;

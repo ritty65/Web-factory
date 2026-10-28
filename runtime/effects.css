@@ -1,0 +1,20 @@
+/* Progressive mechanics only. The business-specific art direction lives elsewhere. */
+[data-effect="magnetic"] > [data-effect-label] { display: inline-block; pointer-events: none; }
+[data-effect="split-text"] [data-effect-word] { display: inline-block; }
+[data-effect="sticky-stack"] > [data-effect-card] { position: relative; }
+[data-effect="sticky-stack"][data-effects-stack] > [data-effect-card] {
+  position: sticky; top: calc(20px + var(--effect-index, 0) * 12px);
+  transform-origin: center top;
+}
+[data-effect-track] { display: flex; gap: 16px; overflow-x: auto; max-width: 100%; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; }
+[data-effect-track] > * { flex: 0 0 min(78vw, 420px); scroll-snap-align: start; min-width: 0; }
+[data-effect-track] img { display: block; width: 100%; height: auto; }
+[data-effect-prev], [data-effect-next] { min-width: 44px; min-height: 44px; }
+[data-effect="drag-gallery"]:not([data-effects-ready]) [data-effect-prev],
+[data-effect="drag-gallery"]:not([data-effects-ready]) [data-effect-next] { display: none; }
+[data-effects-dragging] { cursor: grabbing; user-select: none; scroll-snap-type: none; }
+@media (prefers-reduced-motion: reduce) {
+  [data-effect-label], [data-effect-word], [data-effect-card], [data-effect="clip-reveal"] { transform: none !important; clip-path: none !important; opacity: 1 !important; transition: none !important; }
+  [data-effect="sticky-stack"][data-effects-stack] > [data-effect-card] { position: relative; top: auto; }
+  [data-effect-track] { scroll-behavior: auto !important; }
+}

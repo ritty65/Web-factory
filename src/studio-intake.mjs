@@ -12,6 +12,7 @@ import { transaction } from './sales.mjs';
 import { runProcess } from './process.mjs';
 import { DEFAULT_FACTORY_MODEL } from './model.mjs';
 import {settingsRecord,settingsDigest,studioStatus} from './studio-config.mjs';
+import {PREMIUM_PROFILE} from './effects-contract.mjs';
 
 const key=z.string().regex(/^[a-z0-9][a-z0-9-]{7,95}$/);
 const text=(max,min=1)=>z.string().trim().min(min).max(max).refine(s=>!/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(s));
@@ -67,7 +68,7 @@ export async function apiIntakeRuntime(store){
 async function verifyPhoto(store,id,draftId){const p=get(store,id,'studio_photo');if(!p||p.draftId!==draftId)fail('INTAKE_PHOTO','Photo does not belong to this brief');for(const [file,digest] of [[p.original,p.originalSha256],[p.web,p.webSha256]]){const target=path.join(store.stateRoot,file);await noLinks(target);if(hash(await readFile(target))!==digest)fail('INTAKE_PHOTO','Retained photo bytes changed');}return p;}
 export async function readIntakeProof(store,job){
   const binding=job.input.ownerIntake,p=binding&&get(store,binding.proofId,'studio_proof');
-  if(!p||p.id!==binding.id||p.version!==binding.version||p.digest!==binding.digest||hash(p.data)!==p.digest||p.jobId!==job.id||p.campaignId!==job.campaignId||job.input.modelSelection!==p.modelSelection)fail('INTAKE_BINDING','Exact retained brief, model and owned job must match');
+  if(!p||p.id!==binding.id||p.version!==binding.version||p.digest!==binding.digest||hash(p.data)!==p.digest||p.jobId!==job.id||p.campaignId!==job.campaignId||job.input.modelSelection!==p.modelSelection||job.input.designProfile!==p.designProfile)fail('INTAKE_BINDING','Exact retained brief, model, design profile and owned job must match');
   if(!intakeReadiness(p.data).ready)fail('INTAKE_HELD','Supplied brief confirmation is incomplete or stale');
   const photos=[];for(const id of p.data.photoIds){const photo=await verifyPhoto(store,id,p.id);if(hash(photo)!==p.photoDigests?.[id])fail('INTAKE_BINDING','Photo metadata no longer matches the frozen supplied brief');photos.push(photo);}return {...p,photos};
 }
@@ -110,8 +111,9 @@ export async function intakeDispatch(store,name,input,{runtime}={}){
     const campaign=store.createCampaign({name:r.data.name+' · supplied private concept',area:r.data.area,niche:r.data.niche,query:r.id,candidateLimit:3,buildLimit:3,retryLimit:0,deadlineMinutes:30,autoBuild:false});
     const modelSelection=settingsRecord(store)?'api/deepseek-first':process.env.FACTORY_MODEL_BACKEND==='codex'?'codex/default':DEFAULT_FACTORY_MODEL;
     const proofId='proof-'+hash({id:r.id,version:r.version}).slice(0,24);
-    const job=store.createJob({campaignId:campaign.id,kind:'site',input:{ownerIntake:{id:r.id,version:r.version,digest:input.digest,proofId},modelSelection,requestId:input.requestId}});
-    put(store,proofId,'studio_proof',{id:r.id,version:r.version,digest:input.digest,data:r.data,photoDigests,jobId:job.id,campaignId:campaign.id,modelSelection,...(modelSelection.startsWith('api/')?{apiSettingsDigest:settingsDigest(store)}:{}),createdAt:now(),provenance:'operator_supplied_private_concept'});
+    const design=modelSelection.startsWith('api/')?{designProfile:PREMIUM_PROFILE}:{};
+    const job=store.createJob({campaignId:campaign.id,kind:'site',input:{ownerIntake:{id:r.id,version:r.version,digest:input.digest,proofId},modelSelection,...design,requestId:input.requestId}});
+    put(store,proofId,'studio_proof',{id:r.id,version:r.version,digest:input.digest,data:r.data,photoDigests,jobId:job.id,campaignId:campaign.id,modelSelection,...design,...(modelSelection.startsWith('api/')?{apiSettingsDigest:settingsDigest(store)}:{}),createdAt:now(),provenance:'operator_supplied_private_concept'});
     put(store,receiptId,'studio_build',{id:receiptId,inputDigest:hash(input),jobId:job.id,at:now()});return {job,replayed:false};
   });
 }

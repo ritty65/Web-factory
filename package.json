@@ -19,6 +19,7 @@
     "init": "node src/cli.mjs init",
     "dev": "node src/cli.mjs open",
     "leads:proof": "node scripts/proof-lead-pipeline.mjs",
+    "effects:proof": "node scripts/proof-premium-effects.mjs",
     "leads:health": "node src/cli.mjs leads_health '{}'"
   },
   "dependencies": {

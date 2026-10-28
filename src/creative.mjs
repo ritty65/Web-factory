@@ -2,6 +2,7 @@ import { requestModel } from './model.mjs';
 import { validateProposal, fail, hash, now } from './contracts.mjs';
 import { validateStudies, validateSelection } from './craft.mjs';
 import { validateInteraction, interactionPrompt } from './interaction-contract.mjs';
+import {PREMIUM_PROFILE, validateEffectsPlan, effectsPrompt} from './effects-contract.mjs';
 
 export const creativeRules = `Design an expressive, business-specific experience, not a recolored site shell. The user says the previous sites are too boring and wants exceptional, playful, deliberate scroll-driven craft. A quiet layout is not an excuse for blandness. Choose real art direction: distinctive display typography, confident scale, compelling crops, section-to-section rhythm, memorable silhouettes, intentional negative space. Actual food/product/work must appear on the FIRST phone screen with an immediate useful CTA, not below a wall of text. Do not copy CakeMake's print stack, Cream Burger's diner composition, generic SaaS split heroes or repeated card grids. Three non-color comparisons must name actual references. Give five useful pages with genuinely DIFFERENT content structures, not five variations of the same heading/cards. Keep unsupported details OUT; do not build five pages of research caveats. Customer-facing writing must sound like helpful human communication, not an evidence audit.
 Truth: only supplied facts/media/verified destinations. No invented prices, reviews, stock, history, team, address, hours, dietary claims, orders, bookings, payments or submission success. Historic posted examples are not a verified current full menu. One concise contextual availability note and a proportionate independent private-concept footer suffice. Put provenance/legal/research essays in the separate host handoff, not the hero.
@@ -18,6 +19,11 @@ INSPECTED REFERENCE PRINCIPLES: ${JSON.stringify(references.map(r => ({ name: r.
 SUPPLIED EXACT-PARENT FEEDBACK: ${JSON.stringify(feedback || null)}`;
 const invoke = (common, prompt, files = common.files, task = 'code') => {
   if(common.apiInvoke){
+    if(common.designProfile === PREMIUM_PROFILE) {
+      prompt=prompt.replace('Different inner-page purposes need different useful states, not copied grids or an effects quota.', 'Different inner-page purposes need different useful states, not copied grids.').replace('Animate supporting wrappers, NOT the main CTA/nav.', 'Animate supporting wrappers; premium magnetic controls keep their hit areas stationary. Never animate nav.');
+      prompt+='\n'+effectsPrompt;
+      if(task==='vision')prompt+='\nJudge the declared effect placement and whether the THREE directions differ in composition, geometry and type, not only palette. Block repetitive generic layouts. Still images cannot establish animation quality or human acceptance.';
+    }
     if(common.photoFree)prompt=prompt.replace('Actual food/product/work must appear on the FIRST phone screen with an immediate useful CTA, not below a wall of text.','This is the explicit PHOTO-FREE private-concept profile. Compose the first phone screen with strong typography, abstract original graphics, verified services and an immediate useful CTA. Never fabricate client work images.').replace('Phone food/action must remain immediately visible.','Phone identity and primary action must remain immediately visible.');
     return common.apiInvoke({task,prompt,files:task==='vision'?(files||[]):[]});
   }
@@ -32,7 +38,8 @@ Return JSON {"audience":"actual visitor/task","primaryAction":"supported immedia
   const b = result.output;
   if (!Array.isArray(b.pageMap) || b.pageMap.length !== 5 || !Array.isArray(b.directions) || b.directions.length !== 3 || !b.design?.thesis || !b.signatureInteraction?.kind || !Array.isArray(b.motionPlan) || !b.motionPlan.length) fail('DESIGN_BRIEF', 'Brief needs three worlds, five useful pages and a deliberate progressive motion plan');
   const signatureInteraction = validateInteraction(b.signatureInteraction, { candidate: common.candidate, media: common.media, pages: b.pageMap.map(p => p.file) });
-  return { ...b, signatureInteraction, delegatedSelection: true, humanAcceptance: null, modelSessionId: result.sessionId };
+  const effectsPlan = common.designProfile === PREMIUM_PROFILE ? validateEffectsPlan(b.effectsPlan, {candidate: common.candidate, media: common.media, pages: b.pageMap.map(p=>p.file)}) : null;
+  return { ...b, signatureInteraction, ...(effectsPlan ? {effectsPlan} : {}), delegatedSelection: true, humanAcceptance: null, modelSessionId: result.sessionId };
 }
 export async function makeStudies(common) {
   const result = await invoke(common, `Create THREE complete REAL browser-renderable visual studies, one for EACH brief direction. A study has a memorable first screen AND one genuine supporting section. This is the visual audition before the five-page build; spend craft on actual composition, not documentation. Each should look like a different art director solved this business, not three versions of one layout.

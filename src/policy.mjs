@@ -16,6 +16,7 @@ export async function policyIdentity(scope) {
   if (scope === 'production') names.push('src/assisted-redesign.mjs');
   if (scope === 'production') names.push('src/studio-intake.mjs','src/studio-production.mjs','src/lead-workspace.mjs','src/lead-screening.mjs','src/lead-research.mjs','src/provider-http.mjs','src/codex-model.mjs','src/process.mjs');
   if (scope === 'production') names.push('src/studio-state.mjs','src/studio-config.mjs','src/studio-budget.mjs','src/studio-http.mjs','src/studio-providers.mjs','src/studio-readers.mjs','src/studio-leads.mjs','src/studio-baseline.mjs','src/studio-autopilot.mjs','src/studio-pipeline.mjs','src/studio-recovery.mjs','src/studio-review.mjs','src/recovery.mjs','src/public-http.mjs','src/network.mjs','scripts/camofox-source.mjs','scripts/camofox-broker.mjs','tools/camofox-runtime/factory-plugin.mjs','tools/camofox-runtime/camofox.config.json','tools/camofox-runtime/package.json','tools/camofox-runtime/package-lock.json','tools/scrapling-runtime/extract.py','tools/scrapling-runtime/requirements.lock','tools/overture-runtime/extract.py','tools/overture-runtime/requirements.lock');
+  names.push('src/effects-contract.mjs','src/qa-effects.mjs','runtime/effects.js','runtime/effects.css','src/premium-demo.mjs','src/premium-examples.mjs');
   const files = Object.fromEntries(await Promise.all([...new Set(names)].sort().map(async name => [name, hash(await readFile(new URL('../' + name, import.meta.url)))])));
   return { scope, digest: hash(files), files };
 }

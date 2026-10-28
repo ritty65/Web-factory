@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { fail, safeRelative, id, hash } from './contracts.mjs';
 import { noLinks } from './db.mjs';
 import { workRelative } from './proposal.mjs';
+import {premiumDemoAsset} from './premium-demo.mjs';
 
 export const MIME = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.zip': 'application/zip', '.txt': 'text/plain; charset=utf-8' };
 const webRoot = fileURLToPath(new URL('../web/', import.meta.url));
@@ -77,6 +78,11 @@ export async function startServer(service, { port = 8780, previewPort = 8781 } =
       if (req.method !== 'GET' && req.method !== 'HEAD') fail('METHOD', 'Preview is read-only');
       const raw = new URL(req.url, previewUrl).pathname;
       if (raw === '/health') return json(res, 200, { app: 'simulacra-factory-preview', storeIdentity: hash({ db: service.store.dbPath, state: service.store.stateRoot }), staticOnly: true });
+      if(raw.startsWith('/demo/')){
+        const asset=await premiumDemoAsset(raw);
+        if(req.headers.origin==='null'&&['font','script'].includes(req.headers['sec-fetch-dest']))res.setHeader('access-control-allow-origin','null');
+        res.setHeader('content-type',MIME[path.extname(asset.relative)]);return res.end(req.method==='HEAD'?undefined:asset.bytes);
+      }
       const parts = raw.split('/'); if (!['site', 'study'].includes(parts[1]) || parts.length < 4) fail('NOT_FOUND', 'Preview not found');
       const job = service.store.job(id(parts[2]));
       const study = parts[1] === 'study';

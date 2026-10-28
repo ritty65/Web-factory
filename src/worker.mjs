@@ -186,7 +186,7 @@ async function executeOwnedJob(store, jobId, adapters) {
     }
     const cancelled = store.job(jobId).state === 'cancelled';
     if (current.kind === 'probe') { const { operationRecord } = await import('./pilot.mjs'); operationRecord(store, `probe-${current.id}`, 'research_probe', { status: 'blocked', candidateId: current.input.candidateId, jobId: current.id, errorCode: e.code || 'PROBE_FAILED', at: now(), websiteAbsenceEstablished: false, discoveryCertified: false }); }
-    const blocked = /^(INTAKE_|BATCH_|SOURCE_|SEARCH_|MEDIA_|BROWSER_|INTERACTION_|CANDIDATE_CAP|QUALIFICATION|MODEL_|STALE_|QA_|DESIGN_|PROPOSAL_|REMOTE_RUNTIME|PRIVATE_DNS|DEADLINE|PROVIDER_|SPEND_|PRICE_|PILOT_|API_|FACT_|STUDIO_|UNSUPPORTED_CLAIMS|AUTOPILOT_|SETUP_|CREDENTIAL_)/.test(e.code || '');
+    const blocked = /^(INTAKE_|BATCH_|SOURCE_|SEARCH_|MEDIA_|BROWSER_|INTERACTION_|EFFECTS_|CANDIDATE_CAP|QUALIFICATION|MODEL_|STALE_|QA_|DESIGN_|PROPOSAL_|REMOTE_RUNTIME|PRIVATE_DNS|DEADLINE|PROVIDER_|SPEND_|PRICE_|PILOT_|API_|FACT_|STUDIO_|UNSUPPORTED_CLAIMS|AUTOPILOT_|SETUP_|CREDENTIAL_)/.test(e.code || '');
     store.updateJob(jobId, { state: cancelled ? 'cancelled' : blocked ? 'blocked' : 'failed', ownerPid: null, message: cancelled ? 'Cancelled; prior artifacts preserved' : e.code ? e.message : 'Worker failed; inspect setup and retained stage evidence', errorCode: e.code || 'WORKER_FAILED' });
     store.event(jobId, 'job.stopped', store.job(jobId).message, { errorCode: e.code || 'WORKER_FAILED' });
   } finally { clearInterval(monitor); }

@@ -17,12 +17,12 @@ try{
   if(!slot.queued)throw Error('Expected exactly one simulated daily slot: '+slot.state);
   const discovery=await executeJob(f.store,slot.jobId,{studioRequest:request,observeSource:f.observe});if(discovery.state!=='review_ready')throw Error(discovery.errorCode+': '+discovery.message);
   const site=f.store.jobs().find(j=>j.kind==='site'&&j.state==='queued');if(!site)throw Error('No source-backed proposal queued');
-  const proof=record(f.store,site.input.apiConcept.proofId,'studio_concept_proof');modelData=studioSiteData(proof.candidate);
+  const proof=record(f.store,site.input.apiConcept.proofId,'studio_concept_proof');modelData=studioSiteData(proof.candidate,{variant:day});
   const result=await executeJob(f.store,site.id,{studioRequest:request});if(result.state!=='review_ready')throw Error(result.errorCode+': '+result.message);
   const qa=JSON.parse(await readFile(path.join(f.store.stateRoot,result.outputs.qaRelative,'results.json'),'utf8')),archive=f.store.getArtifact(result.outputs.archiveId);
   if(!qa.pass||qa.pageChecks.length!==25||hash(await readFile(path.join(f.store.stateRoot,archive.relative)))!==archive.sha256)throw Error('Actual browser/ZIP proof did not match');
   await cp(path.join(f.store.stateRoot,'jobs',site.id),path.join(output,'private-proposal-'+(day+1)),{recursive:true,errorOnExist:true});
-  receipts.push({jobId:site.id,assessmentId:site.input.apiConcept.assessmentId,simulatedChicagoDate:site.input.apiConcept.date,qaPass:qa.pass,pageViewportChecks:qa.pageChecks.length,siteDigest:result.outputs.siteDigest,archiveSha256:archive.sha256,humanDecision:result.outputs.humanDecision,photoCount:result.outputs.photoCount});
+  receipts.push({jobId:site.id,assessmentId:site.input.apiConcept.assessmentId,simulatedChicagoDate:site.input.apiConcept.date,qaPass:qa.pass,pageViewportChecks:qa.pageChecks.length,effectFamilies:[...new Set(qa.effectsPlan.effects.map(e=>e.type))],effectViewportChecks:qa.effectsChecks.length,siteDigest:result.outputs.siteDigest,archiveSha256:archive.sha256,humanDecision:result.outputs.humanDecision,photoCount:result.outputs.photoCount});
   process.stdout.write('Fictional proposal '+(day+1)+': real browser checks and exact ZIP passed.\n');
  }
  const app=await startServer(createService(f.store,{autoRun:false,studioRequest:request}),{port:0,previewPort:0}),browser=await chromium.launch({headless:true,executablePath:process.env.FACTORY_BROWSER_EXECUTABLE});

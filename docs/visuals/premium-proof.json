@@ -1,0 +1,111 @@
+{
+  "schema": 1,
+  "at": "2026-10-28T23:16:30.864Z",
+  "verification": "real-local-Chromium-with-authored-or-injected-fictional-inputs",
+  "regression": {
+    "tests": 1582,
+    "passed": 1582,
+    "failed": 0,
+    "skipped": 0,
+    "cancelled": 0,
+    "durationMs": 413161.012101
+  },
+  "authoredExamples": 3,
+  "sourceToSiteMockBuilds": 3,
+  "additionalPageViewportChecks": 150,
+  "additionalEffectViewportChecks": 150,
+  "verifiedArchives": [
+    {
+      "kind": "authored",
+      "siteDigest": "05d7c84debcd765b1b8612711e0cb3703a1a09614105f982517546d1e46eff15",
+      "archiveSha256": "bb88b17e7373c2d05df5e8d96919d5f606f3f4da1e0f9b5efb478d1a58b49732",
+      "families": [
+        "clip-reveal",
+        "magnetic",
+        "split-text"
+      ],
+      "pageViewportEffectChecks": 25,
+      "publicRelease": false,
+      "humanDecision": null
+    },
+    {
+      "kind": "authored",
+      "siteDigest": "e23586d0682e36989312683404ec533cad3f8949e6f8d07273cb85994bdcf9f4",
+      "archiveSha256": "ba192dbe267694445f26f5af931fdd47dd729a3d8310f7a7f7d606ec781c62e2",
+      "families": [
+        "clip-reveal",
+        "magnetic",
+        "split-text",
+        "sticky-stack"
+      ],
+      "pageViewportEffectChecks": 25,
+      "publicRelease": false,
+      "humanDecision": null
+    },
+    {
+      "kind": "authored",
+      "siteDigest": "877450bc7d69d20afb4755439d6dc7fbf3b78316ef5e51fe4f628fb8b9862371",
+      "archiveSha256": "9be860707f5c67a737bf616f216e9330d4b3f4755065fbdaef0776f5da7c8396",
+      "families": [
+        "clip-reveal",
+        "drag-gallery",
+        "magnetic",
+        "split-text",
+        "sticky-stack"
+      ],
+      "pageViewportEffectChecks": 25,
+      "publicRelease": false,
+      "humanDecision": null
+    },
+    {
+      "kind": "injected-source-and-AI",
+      "siteDigest": "fdc3ed583b7d3a45a82c43a4ac137a0590df9ee2fa325b95e49d549a286a740b",
+      "archiveSha256": "b3d07308335f71c10436bd70cf486ed4ba61cb86164317c86a91bfd1c28cfa7c",
+      "families": [
+        "clip-reveal",
+        "magnetic",
+        "split-text"
+      ],
+      "pageViewportEffectChecks": 25,
+      "publicRelease": false,
+      "humanDecision": null
+    },
+    {
+      "kind": "injected-source-and-AI",
+      "siteDigest": "bf3d7c87ce359b0c096349ec24ed587f1b95fe7269657e2e9729ddf720c4b26a",
+      "archiveSha256": "fbf1b1904f9d22374c70b26712587850b7f3e7013e3e1b282958279802565b63",
+      "families": [
+        "clip-reveal",
+        "magnetic",
+        "split-text",
+        "sticky-stack"
+      ],
+      "pageViewportEffectChecks": 25,
+      "publicRelease": false,
+      "humanDecision": null
+    },
+    {
+      "kind": "injected-source-and-AI",
+      "siteDigest": "38d33883cb6997a316e3261173ec9edc843da8281e081d554fe0bc87c1cbe105",
+      "archiveSha256": "4943599b144db17e4b408df50200e9445709b1b3deb96171036884195ed766b9",
+      "families": [
+        "clip-reveal",
+        "magnetic",
+        "split-text",
+        "sticky-stack"
+      ],
+      "pageViewportEffectChecks": 25,
+      "publicRelease": false,
+      "humanDecision": null
+    }
+  ],
+  "realProviderCalls": 0,
+  "actualVpsHours": 0,
+  "humanAcceptances": 0,
+  "publicRelease": false,
+  "limitations": [
+    "Source and AI replies in the studio proof were injected fixtures; the examples were authored by a developer.",
+    "Original demo illustrations and solid-color test uploads are not real customer photographs or client work.",
+    "No real lead yield, live model design quality, genuine Camoufox launch, physical-device performance or VPS reliability is established."
+  ]
+}

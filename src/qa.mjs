@@ -9,6 +9,8 @@ import { MIME } from './server.mjs';
 import { observePerformance, settleImages, sweepPage, sampleScrollMotion, inspectFirstScreen } from './qa-motion.mjs';
 import { validateInteraction } from './interaction-contract.mjs';
 import { checkInteraction, checkInteractionFallback } from './qa-interactions.mjs';
+import {PREMIUM_PROFILE, validateEffectsPlan, effectsDigest} from './effects-contract.mjs';
+import {observeEffectFrames, checkEffects, checkEffectsFallback} from './qa-effects.mjs';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 const { default: AxeBuilder } = require('@axe-core/playwright');
@@ -71,13 +73,27 @@ export async function staticPreview(siteRoot) {
 // Browser route interception and blocked service workers follow official APIs:
 // https://playwright.dev/docs/api/class-browsercontext#browser-context-route
 // Default Axe rules: https://playwright.dev/docs/accessibility-testing
-export async function checkSite({ siteRoot, outputRoot, candidate, media = [], signal, interaction = null }) {
+export async function checkSite({ siteRoot, outputRoot, candidate, media = [], signal, interaction = null, effectsPlan = null }) {
   const audit = await staticAudit(siteRoot, { candidate, media });
+  if(effectsPlan) {
+    effectsPlan=validateEffectsPlan(effectsPlan,{candidate,media,pages:Object.keys(audit.siteHashes).filter(f=>f.endsWith('.html'))});
+    for(const ext of ['js','css']) {
+      const file='assets/factory-effects.'+ext;
+      if(audit.siteHashes[file]!==hash(await readFile(new URL('../runtime/effects.'+ext,import.meta.url))))audit.issues.push({code:'EFFECTS_RUNTIME',file,detail:'Premium builds require the exact protected host runtime'});
+    }
+    for(const file of Object.keys(audit.siteHashes).filter(f=>f.endsWith('.html'))) {
+      const html=await readFile(path.join(siteRoot,file),'utf8');
+      if(!/<script\b[^>]*\bdefer\b[^>]*\bsrc=["']assets\/factory-effects\.js["'][^>]*>/i.test(html)&&!/<script\b[^>]*\bsrc=["']assets\/factory-effects\.js["'][^>]*\bdefer\b[^>]*>/i.test(html))audit.issues.push({code:'EFFECTS_RUNTIME',file,detail:'Every premium page must load the deferred effect runtime'});
+      if(!/<link\b[^>]*\bhref=["']assets\/factory-effects\.css["'][^>]*>/i.test(html))audit.issues.push({code:'EFFECTS_RUNTIME',file,detail:'Every premium page must load the effect stylesheet'});
+    }
+    audit.pass=!audit.issues.length;
+  }
   const signature = interaction ? validateInteraction(interaction, { candidate, media, pages: Object.keys(audit.siteHashes).filter(f => f.endsWith('.html')), legacy: true }) : null;
   await noLinks(outputRoot); await mkdir(outputRoot, { recursive: true, mode: 0o750 });
   const report = { at: now(), policy: 'craft-2', pass: false, siteHashes: audit.siteHashes, siteDigest: hash(audit.siteHashes), staticAudit: audit, issues: [...audit.issues], pageChecks: [], axe: [], interactions: [], captures: [], performance: [], scroll: [], coverage: 'Actual isolated Chromium; 5 pages × 5 widths, default installed Axe, all-page keyboard/gallery/filter/disclosure, normal/fast/reverse scroll, intermediate captures, live finite/infinite reduced-motion, API-absent/no-JS, landscape and 200% root-text checks. Local loading/CLS/LCP/long-task samples are lab observations, not field CWV, certified fps, other engines, physical devices, full WCAG or human acceptance.' };
   report.signatureCoverage = signature?.version === 1 ? 'declared_contract_v1' : signature?.coverage || 'not_declared';
   report.signatureContract = signature?.version === 1 ? signature : null;
+  if(effectsPlan)Object.assign(report,{designProfile:PREMIUM_PROFILE,effectsPlan,effectsDigest:effectsDigest(effectsPlan),effectsChecks:[]});
   if (!audit.pass) { await writeFile(path.join(outputRoot, 'results.json'), JSON.stringify(report, null, 2)); return report; }
   const preview = await staticPreview(siteRoot), browser = await chromium.launch({ executablePath: process.env.FACTORY_BROWSER_EXECUTABLE, headless: true });
   const external = [], errors = [], resources = [];
@@ -87,6 +103,7 @@ export async function checkSite({ siteRoot, outputRoot, candidate, media = [], s
   async function context(options = {}) {
     const ctx = await browser.newContext({ serviceWorkers: 'block', acceptDownloads: false, ...options });
     await ctx.addInitScript(observePerformance);
+    if(effectsPlan)await ctx.addInitScript(observeEffectFrames);
     await ctx.route('**/*', async route => { const u = route.request().url(); if (u.startsWith(preview.url + '/') && ['GET', 'HEAD'].includes(route.request().method())) return route.continue(); external.push({ type: route.request().resourceType(), note: 'Blocked non-site request' }); return route.abort(); });
     ctx.on('page', page => { page.on('pageerror', e => errors.push(e.message.slice(0, 300))); page.on('response', r => { if (r.status() >= 400) resources.push({ status: r.status(), file: new URL(r.url()).pathname }); }); page.on('dialog', dialog => dialog.dismiss()); });
     return ctx;
@@ -108,6 +125,18 @@ export async function checkSite({ siteRoot, outputRoot, candidate, media = [], s
         }
         const sweep = await sweepPage(page); report.scroll.push({ file, viewport: [width, height], ...sweep });
         if (!sweep.pass) report.issues.push({ code: 'SCROLL_MEDIA', file, viewport: [width, height], ...sweep });
+        if(effectsPlan) {
+          const checks=await checkEffects(page,effectsPlan,{file,width,candidate,capture:async effect=>{
+            if(width!==1280&&width!==390)return;
+            const relative=`${file.replace('.html','')}-effect-${effect.targetId}-${width}.png`;
+            await page.screenshot({path:path.join(outputRoot,relative)});
+            report.captures.push({relative,file,viewport:[width,height],kind:'effect-state',effectType:effect.type,targetId:effect.targetId});
+          }});
+          report.effectsChecks.push({file,viewport:[width,height],pass:checks.every(c=>c.pass),checks});
+          if(checks.some(c=>!c.pass))report.issues.push({code:'EFFECTS_BEHAVIOR',file,viewport:[width,height],failures:checks.filter(c=>!c.pass)});
+          // Effect probes scroll/focus/reduce the page. Restore it before layout captures.
+          await page.evaluate(()=>window.scrollTo(0,0));
+        }
         const metrics = await page.evaluate(() => ({ title: document.title, width: innerWidth, scrollWidth: document.documentElement.scrollWidth, main: document.querySelectorAll('main').length, h1: document.querySelectorAll('h1').length, current: document.querySelectorAll('nav [aria-current="page"]').length, brokenImages: Array.from(document.images).filter(i => !i.naturalWidth).length, deadFragments: Array.from(document.querySelectorAll('a[href^="#"]')).filter(a => a.hash.length > 1 && !document.getElementById(decodeURIComponent(a.hash.slice(1)))).length }));
         const pass = metrics.scrollWidth <= width + 1 && metrics.main === 1 && metrics.h1 === 1 && metrics.current >= 1 && !metrics.brokenImages && !metrics.deadFragments;
         report.pageChecks.push({ file, viewport: [width, height], pass, metrics }); if (!pass) report.issues.push({ code: 'PAGE_LAYOUT', file, viewport: [width, height], metrics });
@@ -182,10 +211,12 @@ export async function checkSite({ siteRoot, outputRoot, candidate, media = [], s
     await ctx.close();
     const nojs = await context({ javaScriptEnabled: false, viewport: { width: 390, height: 844 } }); const p = await nojs.newPage();
     const nojsPages = []; for (const file of pages) { await p.goto(`${preview.url}/${file}`); const task = signature?.version === 1 && file === signature.page ? await checkInteractionFallback(p, signature) : null; nojsPages.push({ file, ...(task ? { signature: task } : {}), pass: task?.pass !== false && await p.locator('main h1').isVisible() && await p.locator('a[href]').count() >= 5 && await p.locator('[data-reveal]').evaluateAll(es => es.every(e => Number(getComputedStyle(e).opacity) > 0 && getComputedStyle(e).visibility !== 'hidden')) }); }
+    if(effectsPlan)for(const entry of nojsPages){await p.goto(`${preview.url}/${entry.file}`);entry.effects=await checkEffectsFallback(p,effectsPlan,entry.file);entry.pass&&=entry.effects.pass;}
     report.noJavaScript = { pass: nojsPages.every(v => v.pass), pages: nojsPages, note: 'All five pages: primary content/navigation without JS. Still not full manual accessibility certification.' }; await nojs.close();
     const fallback = await context({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' }); await fallback.addInitScript(() => { window.IntersectionObserver = undefined; Element.prototype.animate = undefined; });
     const fp = await fallback.newPage(); const fallbackPages = [];
     for (const file of pages) { await fp.goto(`${preview.url}/${file}`); const task = signature?.version === 1 && file === signature.page ? await checkInteraction(fp, signature) : null; fallbackPages.push({ file, ...(task ? { signature: task } : {}), pass: task?.pass !== false && await fp.locator('main h1').isVisible() && await fp.locator('[data-reveal]').evaluateAll(es => es.every(e => Number(getComputedStyle(e).opacity) > 0 && getComputedStyle(e).visibility !== 'hidden')) }); }
+    if(effectsPlan)for(const entry of fallbackPages){await fp.goto(`${preview.url}/${entry.file}`);entry.effects=await checkEffectsFallback(fp,effectsPlan,entry.file);entry.pass&&=entry.effects.pass;}
     report.apiFallback = { pass: fallbackPages.every(p => p.pass), pages: fallbackPages }; await fallback.close();
     report.errors = errors; report.blockedExternalRequests = external; report.failedResources = resources;
     if (errors.length || external.length || resources.length) report.issues.push({ code: 'RUNTIME', errors, external, resources });

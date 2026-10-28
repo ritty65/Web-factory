@@ -254,6 +254,15 @@ function renderReviewWorkspace(record,{simple=false}={}) {
     node('div',{class:'files review-open'},link('Open interactive website',`${state.session.previewOrigin}/site/${job.id}/${state.reviewPage}.html`,'primary'),job.state==='review_ready'&&job.outputs.qaPass===true&&job.outputs.archiveId?link('Download website ZIP','/files/'+job.outputs.archiveId,'secondary'):null),
     p('Desktop and Phone below show recorded QA screenshots. Open the interactive website to try its navigation and controls.','muted'),node('details',{},node('summary',{},'Version & check details'),exact,link('Technical work record','#jobs/'+job.id,'action-link')));
   else root.append(...exact.filter(Boolean));
+  if(job.outputs.effectsPlan){
+    const labels={'magnetic':'Magnetic buttons','sticky-stack':'Sticky service cards','split-text':'Split-text reveals','clip-reveal':'Image/section reveals','drag-gallery':'Draggable gallery'};
+    const plan=job.outputs.effectsPlan,checks=job.outputs.effectsChecks||[],passed=checks.filter(c=>c.pass).length;
+    const shelf=node('details',{class:'block'},node('summary',{},'Effects & browser checks'),p(job.outputs.effectsVerification==='local_browser_checked'?`${passed}/${checks.length} page/viewport effect checks passed in local Chromium.`:'Effect checks are pending or held.','meta'),p(job.outputs.modelVerification==='live_api'?'Model calls used the live provider transport. Your design verdict is still required.':'Model verification is injected or unverified. This is not proof of live AI quality.','meta'),node('ul',{class:'facts'},plan.effects.map(e=>node('li',{},node('strong',{},labels[e.type]||e.type),' · '+e.page,p(e.purpose),p('Fallback: '+e.fallback,'meta')))),p('Three to five distinct families. Phone, touch and reduced-motion behavior may be simpler. Real booking, forms and payment systems need separate integrations.','meta'));
+    const effectCaptures=record.artifacts.filter(a=>a.kind==='site_capture'&&a.relative.startsWith(job.outputs.qaRelative+'/')&&/-effect-/.test(a.relative));
+    if(effectCaptures.length)shelf.append(node('div',{class:'files'},effectCaptures.map(a=>fileLink(a,'View '+a.relative.split('/').pop().replace('.png','')+' capture'))));
+    const failed=checks.flatMap(c=>c.checks.filter(v=>!v.pass).map(v=>c.file+' '+c.viewport[0]+'px: '+v.name));if(failed.length)shelf.append(node('ul',{},failed.map(f=>node('li',{},f))));
+    root.append(shelf);
+  }
   const device=width=>{state.reviewDevice=width;render();document.querySelector('#review-workspace .review-controls [aria-pressed=true]')?.focus({preventScroll:true});};
   const desktop=button('Desktop', () => device(1440), state.reviewDevice === 1440 ? 'primary small' : 'secondary small'),phone=button('Phone', () => device(390), state.reviewDevice === 390 ? 'primary small' : 'secondary small');
   desktop.setAttribute('aria-pressed',String(state.reviewDevice===1440));phone.setAttribute('aria-pressed',String(state.reviewDevice===390));

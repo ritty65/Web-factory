@@ -152,7 +152,7 @@ export function validateProposal(input, { pageCount = 5 } = {}) {
   const names = new Set(); let total = 0, js = 0, css = 0;
   const files = input.files.map(file => {
     const name = safeRelative(file.path);
-    if (/^assets\/(?:factory-motion\.(?:js|css)|fonts\/)/.test(name)) fail('RESERVED_ASSET', 'Reserved host runtime/font assets cannot be replaced by model output');
+    if (/^assets\/(?:factory-(?:motion|effects)\.(?:js|css)|fonts\/)/.test(name)) fail('RESERVED_ASSET', 'Reserved host runtime/font assets cannot be replaced by model output');
     if (!['.html', '.css', '.js', '.svg', '.txt'].includes(path.posix.extname(name)) || names.has(name.toLowerCase())) fail('INVALID_PROPOSAL', 'Duplicate or unsupported model file');
     names.add(name.toLowerCase());
     const content = text(file.content, 'Static file', 240000);

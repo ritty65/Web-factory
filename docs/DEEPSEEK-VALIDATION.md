@@ -2,7 +2,13 @@
 
 The implementation separates locally executed checks from live provider/business outcomes. All automated source and AI replies in the integration tests are controlled fictional fixtures. Chromium renders, Scrapling extraction, DuckDB import, SQLite ledger behavior and package hashing execute for real.
 
-## Checks
+## Latest premium-site checks
+
+The premium upgrade passed **1,582 tests with zero failures, cancellations or skips** in 413.16 seconds. It includes all five effect families, actual movement, stationary magnetic hit areas, sticky-card focus safety, real dragging, native no-JS gallery scrolling, reduced motion, invalid/altered plans, protected runtime bytes and a complete three-photo API build. Text/code and source responses in these tests are still injected fixtures.
+
+Two additional proofs passed: three authored five-page examples with 3/4/5 families, and three complete source-to-site mock builds. Together they produced **150 passing page/viewport checks, 150 effect page/viewport records and six independently hash-verified private ZIPs**. No real API call, human acceptance or VPS hour was recorded. See [receipts](visuals/premium-proof.json) and [the interactive demo and live-test guide](PREMIUM-SITES.md).
+
+## Earlier DeepSeek foundation checks
 
 The final complete regression run passed **1,529 tests with zero failures, cancellations or skips** in 389.95 seconds. It includes the final metering boundary, exact-version review, real photo-bearing production path, legacy-interface compatibility and completed setup layout. An earlier complete run passed 1,525 tests; an intermediate run was stopped after detecting a compatibility regression, which was fixed and checked before the final full run.
 

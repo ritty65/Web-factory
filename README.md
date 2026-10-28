@@ -45,6 +45,8 @@ If Chromium is already installed, set `FACTORY_BROWSER_EXECUTABLE` to its absolu
 
 ## Live operation prerequisites
 
+New API builds use a tested five-effect library and a frozen premium design plan. Open **Setup & API keys** for three interactive fictional demos; no keys are needed to try them. See [premium sites and first real test](docs/PREMIUM-SITES.md). Effect tests are separate from live AI quality and lead yield.
+
 Open **Setup & API keys** and save a private API profile. DeepSeek is the default code provider; OpenRouter is the default image-review route. OpenAI and registered compatible services are supported. The full pilot requires tested Google Places, Apollo, Firecrawl, Scrapling and guarded Camofox integrations, confirmed current prices/source use, and an allowance. A ChatGPT subscription is separate from API credit. See the [guide](docs/DEEPSEEK-PILOT.md) for installation, exact limits and recovery.
 
 `node scripts/install-studio-runtimes.mjs` installs locked isolated Python 3.12/Node tools. Genuine Camoufox download is explicit with `--fetch-browser`; the broker/source service must be started separately. Use the VPS installer only on the documented private server. Saving keys starts no provider request; an automatic pilot starts only after explicit authorization. Existing legacy histories remain; their paid routes are held after an API profile is adopted so they cannot bypass its shared allowance.
