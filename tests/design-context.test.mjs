@@ -1,0 +1,8 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {spawnSync} from 'node:child_process';
+
+test('creative critique uses the actual rendered selection, not the brief provisional index',()=>{
+ const script=`import{mock}from'node:test';let seen;mock.module(${JSON.stringify(new URL('../src/model.mjs',import.meta.url).href)},{namedExports:{requestModel:async input=>{seen=input;return{output:{notes:['Fixture review only'],blockingDefects:[]},sessionId:'fixture'};}}});const{critique}=await import(${JSON.stringify(new URL('../src/creative.mjs',import.meta.url).href)});const brief={selectedDirection:0,directions:[{name:'Old provisional world'},{name:'Other'},{name:'Actual selected world'}]},before=JSON.stringify(brief);await critique({candidate:{name:'Fixture',facts:[],unknowns:[]},brief,selection:{selectedDirection:2,notes:['Actual pixel selection'],blockingDefects:[]},selectedStudy:{name:'Actual selected world',design:{thesis:'Selected visual world'}},qa:{coverage:{},siteHashes:{}},captureManifest:[],files:[]});console.log(JSON.stringify({actual:seen.prompt.includes('ACTUAL RENDERED SELECTION:'),selected:seen.prompt.includes('"selectedDirection":2'),name:seen.prompt.includes('Actual selected world'),unchanged:JSON.stringify(brief)===before,provisionalWarning:seen.prompt.includes('provisional')}));`;
+ const child=spawnSync(process.execPath,['--experimental-test-module-mocks','--input-type=module','--eval',script],{encoding:'utf8',timeout:10000});assert.equal(child.status,0,child.stderr);assert.deepEqual(JSON.parse(child.stdout.trim().split('\n').at(-1)),{actual:true,selected:true,name:true,unchanged:true,provisionalWarning:true});
+});

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permissions": [{ "action": "factory_*", "resource": "*", "effect": "allow" }],
+  "agents": {
+    "plan": {
+      "permissions": [
+        { "action": "factory_*", "resource": "*", "effect": "deny" },
+        { "action": "factory_status", "resource": "*", "effect": "allow" },
+        { "action": "factory_inspection_identity", "resource": "*", "effect": "allow" },
+        { "action": "factory_doctor", "resource": "*", "effect": "allow" },
+        { "action": "factory_job_get", "resource": "*", "effect": "allow" },
+        { "action": "factory_candidate_get", "resource": "*", "effect": "allow" },
+        { "action": "factory_sales_status", "resource": "*", "effect": "allow" },
+        { "action": "factory_case_get", "resource": "*", "effect": "allow" },
+        { "action": "factory_pilot_status", "resource": "*", "effect": "allow" },
+        { "action": "factory_snapshot_list", "resource": "*", "effect": "allow" },
+        { "action": "factory_job_history", "resource": "*", "effect": "allow" },
+        { "action": "factory_batch_status", "resource": "*", "effect": "allow" },
+        { "action": "factory_batch_get", "resource": "*", "effect": "allow" },
+        { "action": "factory_batch_readiness", "resource": "*", "effect": "allow" },
+        { "action": "factory_lead_list", "resource": "*", "effect": "allow" }
+      ]
+    }
+  },
+  "mcp": {
+    "servers": {
+      "factory": {
+        "type": "local",
+        "codemode": false,
+        "command": [
+          "node",
+          "/home/ai_dev/01_PROJECTS/BUSINESS/simulacra-factory/src/mcp.mjs"
+        ]
+      }
+    }
+  }
+}

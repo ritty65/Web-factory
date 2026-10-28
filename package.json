@@ -1,0 +1,29 @@
+{
+  "name": "simulacra-factory",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.13.0"
+  },
+  "packageManager": "npm@11.9.0",
+  "scripts": {
+    "test": "node --test --test-concurrency=2 tests/*.test.mjs",
+    "start": "node src/cli.mjs serve",
+    "doctor": "node src/cli.mjs doctor",
+    "mcp": "node src/mcp.mjs",
+    "qa": "node qa.mjs",
+    "verify:opencode": "node scripts/verify-opencode.mjs",
+    "verify:preservation": "python3 -B scripts/verify-preservation.py",
+    "verify:recovery": "node scripts/verify-recovery.mjs",
+    "init": "node src/cli.mjs init",
+    "dev": "node src/cli.mjs open"
+  },
+  "dependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "playwright": "1.64.1",
+    "sharp": "0.35.5",
+    "zod": "4.6.7"
+  }
+}

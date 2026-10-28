@@ -1,0 +1,17 @@
+#!/bin/sh
+set -eu
+credential_state=${FACTORY_STATE-}
+if [ "${FACTORY_STATE+x}" != x ] && [ "${FACTORY_DB+x}" != x ]; then
+  credential_state="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)/.factory-state"
+fi
+if [ -n "$credential_state" ]; then
+  credential_file="$credential_state/credentials/firecrawl.env"
+  if [ -L "$credential_file" ]; then
+    echo 'Factory credential env-file must not be a symlink' >&2
+    exit 1
+  fi
+  if [ -f "$credential_file" ]; then
+    exec node "--env-file=$credential_file" "$(dirname "$0")/../src/cli.mjs" "$@"
+  fi
+fi
+exec node "$(dirname "$0")/../src/cli.mjs" "$@"

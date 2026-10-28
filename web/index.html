@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>Simulacra Factory · Start</title><link rel="stylesheet" href="/style.css"><script src="/pilot.js" defer></script><script src="/progress.js" defer></script><script src="/batches.js" defer></script><script src="/app.js" defer></script></head>
+<body>
+  <a class="skip" href="#main">Skip to workspace</a>
+  <aside class="sidebar">
+    <a class="identity" href="#start"><span class="mark" aria-hidden="true">S<span>↗</span></span><span>SIMULACRA<small>Factory / private studio</small></span></a>
+    <div class="nav-label">WORKSPACE</div>
+    <nav aria-label="Factory"><a href="#start"><span aria-hidden="true">1</span> Find leads</a><a href="#leads"><span aria-hidden="true">2</span> Choose business</a><a href="#inbox"><span aria-hidden="true">3</span> Your websites</a><details id="advanced-nav"><summary>Tools & history</summary><a href="#jobs">Jobs</a><a href="#sales">Sales desk</a><a href="#operations">Operations</a><a href="#businesses">Businesses</a><a href="#references">References</a><a href="#assets">Assets</a><a href="#integrations">Integrations</a></details></nav>
+    <div class="sidebar-foot"><span class="local-dot" aria-hidden="true"></span> Local-first. Human-led.<p>Research → make → review.<br>Nothing goes live from here.</p><a href="http://127.0.0.1:8774/" target="_blank" rel="noopener">Open business library ↗</a></div>
+  </aside>
+  <div class="workspace">
+    <header class="topbar"><span>SIMULACRA / <strong id="crumb">PRODUCTION</strong></span><div><span class="local-label">PRIVATE WORKSPACE</span><button id="refresh" class="text-button" type="button">Refresh ↻</button></div></header>
+    <main id="main" tabindex="-1">
+      <div class="page-heading"><div><p class="eyebrow" id="eyebrow">RESEARCH. CRAFT. REVIEW.</p><h1 id="title">Production desk<span>.</span></h1><p id="subtitle" class="lede">From a real business to a considered website. With the evidence attached.</p></div><button id="new-campaign" class="primary" type="button">New campaign <span aria-hidden="true">↗</span></button></div>
+      <section id="campaign-panel" class="form-panel" aria-labelledby="campaign-title" hidden>
+        <div class="section-top"><h2 id="campaign-title">New campaign</h2><button id="close-campaign" class="text-button" type="button">Close</button></div>
+        <p class="muted">A bounded private production run. No sending, publication or purchases.</p>
+        <form id="campaign-form"><div class="form-grid">
+          <label>Campaign name<input name="name" required maxlength="100" placeholder="Houston · independent workshops"></label>
+          <label>Area<input name="area" required maxlength="100" value="Houston, Texas"></label>
+          <label>Business niche<input name="niche" required maxlength="100" placeholder="Independent taco trucks"></label>
+          <label>Research query<input name="query" required maxlength="300" placeholder="Public sources, exact business identity, website checks"></label>
+          <label>Candidate cap<input name="candidateLimit" type="number" min="1" max="100" value="6" required></label>
+          <label>Build cap<input name="buildLimit" type="number" min="1" max="10" value="1" required></label>
+        </div><details><summary>Worker limits</summary><div class="form-grid"><label>Concurrent jobs<input name="concurrency" type="number" min="1" max="2" value="1" required></label><label>Deadline per job (minutes)<input name="deadlineMinutes" type="number" min="2" max="60" value="30" required></label></div></details>
+        <label class="check-label"><input name="autoBuild" type="checkbox"> Automatically prepare qualified private proposals, within the build cap</label>
+        <div class="form-footer"><span class="muted">One retry maximum. Unresolved sources stay on hold.</span><button class="primary" type="submit">Create campaign</button></div></form>
+      </section>
+      <div id="content" aria-busy="true"><p class="empty">Opening the actual production ledger…</p></div>
+      <footer class="workspace-footer"><span>BUILT FOR CONSIDERED WORK, NOT JUST MORE OUTPUT.</span><span id="freshness">Connecting to the local ledger</span></footer>
+    </main>
+  </div>
+  <div id="notice" role="status" aria-live="polite"></div>
+  <noscript><p class="noscript">The operator console needs JavaScript for live jobs. The JSON CLI and the existing read-only business library remain available.</p></noscript>
+</body></html>

@@ -1,0 +1,51 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtemp,rm} from 'node:fs/promises';
+import path from 'node:path';
+import {initialize,openStore} from '../src/db.mjs';
+import {createService,OPERATIONS} from '../src/service.mjs';
+import {batchPreset} from '../src/batches.mjs';
+import {operationRecord} from '../src/pilot.mjs';
+import {hash,now} from '../src/contracts.mjs';
+import {guardBatchJob} from '../src/batch-store.mjs';
+import {seedResearchContext} from '../src/scout.mjs';
+import {Client} from '@modelcontextprotocol/sdk/client/index.js';
+import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
+
+const mode='houston_local_radius_v1',parentId='seed-0de2a46309d14565b96b5a87949952bd',childId='seed-b51d21e8dd56416daa89b0307cd3bbbf';
+test('shared local-mode catalog freezes approximate locator provenance without qualifying or building a business',async t=>{
+  assert.equal(OPERATIONS.seed_prepare.schema.safeParse({presetVersion:1,requestId:'local-proof-fixture',authorized:true,discoveryMode:mode,failedPreparationId:childId}).success,true);
+  const root=await mkdtemp('/tmp/factory-local-interface-'),options={dbPath:path.join(root,'fixture.sqlite'),stateRoot:path.join(root,'state'),autoRun:false};
+  await initialize(options);const store=openStore(options);t.after(()=>{store.close();return rm(root,{recursive:true,force:true});});
+  const settings={area:'Houston city limits',niche:'Mobile auto detailers, custom bakers and event decorators; photo-rich independent no-site businesses',targetCount:1,candidateLimit:6,maxResearchRounds:2,searchProvider:'firecrawl',maxSearches:16,discoverySearchLimit:6,maxInspections:48,maxImageViews:12,maxModelRequests:16,batchMinutes:90,jobMinutes:45,workflow:'leads_first'};
+  let calls=0,received;
+  const discovery={mode,lat:29.75893783569336,lon:-95.3676986694336,radiusM:15000,cityEligibility:'unknown',pages:[{fixture:'Fictional integration locator, no actual provider data',resultCount:1,moreAvailable:false}]};
+  const service=createService(store,{...options,batchPrerequisites:async()=>({ready:true}),boundaryPreflight:()=>{throw Error('Local mode must not warm or require polygons');},seedCollector:async args=>{calls++;received=args;return {provider:'placeroot',retrievedAt:now(),version:{package:'0.12.0',release:'2026-09-23.1',resolution:{source:'fictional-fixture'},discovery},attribution:['Fictional source fixture only'],limitations:['Approximate local discovery; city eligibility unknown'],items:[{id:'fictional-local-gers',name:'Fictional Local Detail',location:{lat:29.76,lon:-95.37},categories:['auto_detailing'],urls:[],provenance:{dataset:'fictional',selection:discovery}}]};}});
+  await service.dispatch('batch_preset_save',{version:0,requestId:'local-interface-preset',settings,acknowledged:true});const preset=batchPreset(store);
+  const common={state:'failed',claimedBatchId:null,presetVersion:preset.version,settings:preset.settings,settingsDigest:hash(preset.settings),startedAt:now(),finishedAt:now()};
+  const parent={...common,id:parentId},child={...common,id:childId,retryOf:parentId};
+  operationRecord(store,parent.id,'seed_preparation',parent);operationRecord(store,child.id,'seed_preparation',child);
+  const old=store.db.prepare("SELECT record FROM factory_operation WHERE kind='seed_preparation' ORDER BY id").all();
+  const input={presetVersion:1,requestId:'local-proof-fixture',authorized:true,discoveryMode:mode,failedPreparationId:childId};
+  const receipt=await service.dispatch('seed_prepare',input);assert.equal(received.discoveryMode,mode);assert.equal(received.boundary,undefined);
+  assert.deepEqual(await service.dispatch('seed_prepare',input),receipt);assert.equal(calls,1);
+  for(const row of old)assert.ok(store.db.prepare("SELECT record FROM factory_operation WHERE kind='seed_preparation' AND record=?").get(row.record));
+  const batch=await service.dispatch('batch_start',{presetVersion:1,requestId:'local-interface-start',authorized:true,seedReceipt:{id:receipt.id,digest:receipt.digest}});
+  assert.deepEqual(batch.seedCohort.version.discovery,discovery);assert.deepEqual(batch.settings,settings);
+  const job=store.job(batch.researchJobIds[0]);assert.doesNotThrow(()=>guardBatchJob(store,job));
+  const context=JSON.stringify(seedResearchContext(store,job.id));assert.match(context,/unknown|unverified/i);
+  assert.equal(store.candidates().length,0);assert.equal(store.jobs().filter(j=>j.kind==='site').length,0);
+  assert.equal(store.campaign(batch.campaignId).model,'openai/gpt-6.1-sol-fast');
+  const client=new Client({name:'local-mode-catalog-fixture',version:'1'});
+  try{
+    await client.connect(new StdioClientTransport({command:process.execPath,args:['src/mcp.mjs'],env:{PATH:'',FACTORY_DB:options.dbPath,FACTORY_STATE:options.stateRoot,FACTORY_AUTORUN:'0'},stderr:'pipe'}));
+    const tool=(await client.listTools()).tools.find(v=>v.name==='seed_prepare');
+    assert.deepEqual(tool.inputSchema.properties.discoveryMode.enum,[mode]);
+    assert.equal(tool.inputSchema.additionalProperties,false);
+    const retained=await client.callTool({name:'seed_get',arguments:{id:receipt.id}});
+    assert.equal(retained.isError,undefined);assert.equal(retained.structuredContent.digest,receipt.digest);
+    assert.match(retained.structuredContent.label,/city eligibility unknown/);
+    assert.equal((await client.callTool({name:'seed_prepare',arguments:{...input,radiusM:99999}})).isError,true);
+    assert.equal(store.db.prepare("SELECT count(*) n FROM factory_operation WHERE kind='seed_preparation'").get().n,3);
+  }finally{await client.close();}
+});
