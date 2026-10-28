@@ -26,5 +26,23 @@
     "ChatGPT endpoint denied by current running network policy",
     "No Google Places key configured in running instance",
     "Real business pilot and VPS access/domain/TLS/login verification outstanding"
-  ]
+  ],
+  "leadReliabilityFollowUp": {
+    "date": "2026-10-28",
+    "fullSuite": {
+      "tests": 1469,
+      "pass": 1469,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "durationMs": 299277.048195
+    },
+    "focusedLeadTests": 103,
+    "browserTests": 5,
+    "fictionalCohortProof": "visuals/lead-pipeline-proof.json",
+    "liveBusinessesTested": 0,
+    "liveSourceCalls": 0,
+    "sustainedLeadQualityProven": false,
+    "vpsTimerStarted": false
+  }
 }

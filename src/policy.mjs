@@ -14,7 +14,7 @@ export async function policyIdentity(scope) {
   if (scope === 'production') names.push('src/assisted.mjs','src/assisted-evidence.mjs');
   if (scope === 'production') names.push('src/study-continuation.mjs');
   if (scope === 'production') names.push('src/assisted-redesign.mjs');
-  if (scope === 'production') names.push('src/studio-intake.mjs','src/studio-production.mjs','src/lead-workspace.mjs','src/provider-http.mjs','src/codex-model.mjs','src/process.mjs');
+  if (scope === 'production') names.push('src/studio-intake.mjs','src/studio-production.mjs','src/lead-workspace.mjs','src/lead-screening.mjs','src/lead-research.mjs','src/provider-http.mjs','src/codex-model.mjs','src/process.mjs');
   const files = Object.fromEntries(await Promise.all([...new Set(names)].sort().map(async name => [name, hash(await readFile(new URL('../' + name, import.meta.url)))])));
   return { scope, digest: hash(files), files };
 }

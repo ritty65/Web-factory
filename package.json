@@ -17,7 +17,9 @@
     "verify:preservation": "python3 -B scripts/verify-preservation.py",
     "verify:recovery": "node scripts/verify-recovery.mjs",
     "init": "node src/cli.mjs init",
-    "dev": "node src/cli.mjs open"
+    "dev": "node src/cli.mjs open",
+    "leads:proof": "node scripts/proof-lead-pipeline.mjs",
+    "leads:health": "node src/cli.mjs leads_health '{}'"
   },
   "dependencies": {
     "@axe-core/playwright": "4.14.0",

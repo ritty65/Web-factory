@@ -34,3 +34,10 @@ Keep it as a separate localhost-only service with a dedicated unprivileged user 
 ## Opt-in discovery timer
 
 After explicitly enabling a schedule in Lead workspace, install `web-factory-leads.service` and `.timer` with the same private environment file and service user. Verify them, then enable/start the timer deliberately. It ticks every five minutes; the app reserves no more than one due attempt per Chicago date and uses the shared three-attempt rolling quota. Disable the schedule in the app or stop the timer to pause future work. Inspect `journalctl -u web-factory-leads.service` for held/missing-configuration outcomes. This timer does not generate websites or send outreach.
+
+
+### Lead source readiness
+
+The timer now rotates saved areas and can optionally perform up to three Firecrawl cross-checks per day. Use the updated 120-second unit timeout. Primary discovery and secondary research have separate shared three-attempt rolling quotas. Provider failures pause the schedule; saturation pauses it once every area has returned zero new identities three times. Resuming is an explicit operator action. Inspect `npm run leads:health`, `leads_research_status`, and the service journal. Missing credentials do not reserve a daily slot. The dashboard can flag a missing completed run after 36 hours; no external notification delivery is configured.
+
+This is scheduling software, not a certification of Google Places prospecting/storage rights. Confirm the account agreement and enforce its retention rules before sustained collection. A long-term stored lead database may need openly licensed Overture data or a provider that explicitly licenses prospecting/export. Read `docs/LEAD-SOURCING.md`. No real VPS timer or live data feed was enabled during development.

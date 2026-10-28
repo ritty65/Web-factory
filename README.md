@@ -2,7 +2,7 @@
 
 A local operator workspace for finding suitable local service businesses, verifying their evidence, producing private website proposals, and reviewing the exact output before any customer delivery.
 
-**Current status:** the imported app now includes a real guided Business intake, private supplied-photo uploads, a lead/evidence workspace, manual/CSV intake, an optional Google Places adapter, opt-in daily discovery and a ChatGPT/Codex proposal adapter. See [the operating guide](docs/OPERATING-GUIDE.md). Offline tests and local browser paths are verified. Live model access, real provider yield and VPS deployment remain separate acceptance checks; they have not been certified by fixture tests.
+**Current status:** the imported app now includes a real guided Business intake, private supplied-photo uploads, a lead/evidence workspace, manual/CSV intake, an optional Google Places adapter, opt-in daily discovery and a ChatGPT/Codex proposal adapter. The lead workspace also includes target rules, ranked research, optional Firecrawl cross-checks, rotating searches and failure/saturation pauses. See [the operating guide](docs/OPERATING-GUIDE.md). Offline tests and local browser paths are verified. Live model access, real provider yield and VPS deployment remain separate acceptance checks; they have not been certified by fixture tests.
 
 ## Start here
 
@@ -10,7 +10,7 @@ A local operator workspace for finding suitable local service businesses, verify
 - [Technical and product review](docs/APP-REVIEW.md)
 - [Interactive proposed UI](docs/UX-PROTOTYPE.html) — open this file in a browser; illustrative data only.
 - [Prioritized implementation plan](docs/ROADMAP.md)
-- [Lead sourcing and Apollo decision](docs/LEAD-SOURCING.md)
+- [Automated lead pipeline, source choice and live acceptance](docs/LEAD-SOURCING.md)
 - [How to use the implemented flows](docs/OPERATING-GUIDE.md)
 - [Private Hostinger VPS setup](deploy/README.md)
 - [Original import validation results and limits](docs/VALIDATION.md)

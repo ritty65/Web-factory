@@ -71,3 +71,16 @@ Camofox remains an optional diagnostic connection. Its public package supports p
 - Off-server backup and a separate-root restore are exercised, with source/customer retention requirements reviewed.
 
 The current implementation is an operator-assisted product foundation. A failed integration, unknown fact or missing credential stays visible. Do not call it an autonomous lead-to-paying-customer service until a real pilot supports that claim.
+
+
+## Lead reliability update
+
+Lead workspace now starts with pipeline health and the ranked review queue. Save your city/service rules under **Choose which businesses fit**. Use the **no independent website** lane; listed independent sites are excluded, while missing fields remain unknown. Ranking is research priority, not buying probability.
+
+The optional secondary search needs `FIRECRAWL_API_KEY` for `api.firecrawl.dev`. An explicit one-lead check is available in its evidence panel. Enabling the schedule's separate secondary-search checkbox authorizes up to three such searches daily; enabling discovery alone does not. Both provider terms and real data retention/export rights must allow the proposed use. See [lead sourcing](LEAD-SOURCING.md) before adopting a permanent source.
+
+Enter one search area per line to rotate daily searches. The schedule skips an area after three zero-new-identity responses and pauses once all areas are exhausted. A provider/research failure pauses future work, retaining rows, errors and consumed attempts. Inspect the reason before explicitly resuming. A stranded secondary request can be acknowledged through `leads_research_resolve` with its exact ID/start date after two minutes; this never refunds or retries it. The VPS lead service timeout is 120 seconds to accommodate one primary and up to three bounded secondary requests.
+
+A secondary search may find a possible independent site. That conflict stays held across later listing refreshes. Inspect the candidate sites, save a specific later website observation, and explicitly resolve the conflict in the evidence form if appropriate. A missing search result is never evidence that a site does not exist.
+
+Read `leads_health` for fixed-cohort new/refresh/held counts, current gaps and scheduler alerts. Read `leads_research_status` for secondary quotas/unresolved requests. Neither operation calls a provider. The saved environment key requirements are optional configuration slots, not connected accounts. Automatic discovery remains disabled in real private state until live acceptance.

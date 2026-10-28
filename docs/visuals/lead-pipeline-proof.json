@@ -1,0 +1,53 @@
+{
+  "kind": "actual-app-frozen-fictional-cohort",
+  "at": "2026-10-28T17:13:26.180Z",
+  "liveBusinessesTested": 0,
+  "liveProviderCalls": 0,
+  "modelCalls": 0,
+  "paidRequests": 0,
+  "injectedPrimaryRequests": 1,
+  "injectedSecondaryRequests": 3,
+  "cohortSize": 18,
+  "sourceQuarantined": 3,
+  "retainedUniquePointers": 15,
+  "counts": {
+    "total": 15,
+    "research_first": 3,
+    "reviewed_shortlist": 0,
+    "needs_evidence": 9,
+    "excluded": 3,
+    "stale": 0,
+    "suppressed": 0,
+    "conflicts": 2
+  },
+  "views": [
+    {
+      "width": 1440,
+      "overflow": false,
+      "violations": []
+    },
+    {
+      "width": 390,
+      "overflow": false,
+      "violations": []
+    },
+    {
+      "width": 320,
+      "overflow": false,
+      "violations": []
+    }
+  ],
+  "pageErrors": [],
+  "sameDayReplayMadeNoRequests": true,
+  "websiteAbsenceProven": false,
+  "qualifiedLeadsProven": 0,
+  "sourceResponseProven": false,
+  "sustainedLeadQualityProven": false,
+  "notes": [
+    "Three possible missed websites were held by secondary research.",
+    "Closed/malformed rows were quarantined without refill.",
+    "Independent-site businesses were excluded from the no-site lane.",
+    "Wrong-area, wrong-service and shared-phone identities require evidence.",
+    "A fixture proof verifies app behavior, not commercial lead supply."
+  ]
+}
