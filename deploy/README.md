@@ -2,6 +2,16 @@
 
 These are reviewable single-operator templates, not evidence that your VPS has been configured. VPS access, domain names, DNS, certificates and the operator login are not available in this task. Do not open the app to the Internet without finishing and checking these steps. Ordinary shared website hosting cannot run the Factory backend/worker/browser stack.
 
+The implemented code is currently on `feature/reliable-intake-and-leads`, rather than the repository's original `main`. After preparing the service user/directories, obtain the reviewed source with:
+
+```sh
+git clone --branch feature/reliable-intake-and-leads https://github.com/ritty65/Web-factory.git /opt/webfactory
+cd /opt/webfactory
+npm ci
+```
+
+Review the branch before deployment; the examples below do not create accounts, certificates or passwords automatically.
+
 1. Use a supported Linux VPS. Install Node 24.13+, Python 3, system Chromium and its shared libraries, Nginx, a certificate client and `htpasswd` tooling from trusted OS/package sources. Install a supported Codex CLI and sign in as the **webfactory service user** using its own account. A ChatGPT subscription is not an OpenAI API key and its availability/usage limits still apply. Do not copy this task's credentials.
 2. Create a dedicated unprivileged `webfactory` user with `/var/lib/webfactory` as its private home. Make `/var/lib/webfactory/state` private and writable by that user. Put the reviewed checkout in `/opt/webfactory`, install with `npm ci`, and keep application code read-only to the service user. It must be able to run Node, Codex and the project-local `agent-browser` binary.
 3. Create `/etc/webfactory/runtime.env` from the example; set both state/database paths. Enter actual keys outside Git if using paid provider APIs. Limit file permissions to the necessary service/operator account. Initialize the DB as that service user with the same state variables. Back up any existing state before upgrades.
