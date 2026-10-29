@@ -1,0 +1,193 @@
+{
+  "package": "placeroot",
+  "version": "0.12.0",
+  "python": "3.12.3",
+  "packages": [
+    {
+      "name": "placeroot",
+      "version": "0.12.0",
+      "wheelSha256": "a6878883a35d7d6f1dac5d0e10c1ad12e05a2ceccb711f43c81b052a4fc0f706",
+      "recordSha256": "f8701d3f975dd6eb03d8da2b3c068af0cb71571b6557ad938c0242e757fd4821"
+    },
+    {
+      "name": "duckdb",
+      "version": "1.5.6",
+      "wheelSha256": "bc9619ed7d4ffa117b5155d84b44794366bb6635178d78ed5e13a6024845c757",
+      "recordSha256": "3f00cd279b1d599c232f62cfc4d879ec11396dd91c1f9db9ce43f2471035ddfa"
+    },
+    {
+      "name": "mcp",
+      "version": "2.3.0",
+      "wheelSha256": "dd0c44c089d16453e8ae31a3877a0054d7a2314caaa81f5e0541b9b1734b2377",
+      "recordSha256": "cee015ea409bed1fef269e024cb0a42d9cf3089e21e9771de8e7656dc4baa44a"
+    },
+    {
+      "name": "mcp-types",
+      "version": "2.3.0",
+      "wheelSha256": "968efdbdaedfab06adae40d378a34395f1090c5921d4be3c9cde283aaf76d91d",
+      "recordSha256": "b7a9b5269387f5be3c304972c85608917250fdedf5f26a1929cc0ab32a0acd21"
+    },
+    {
+      "name": "pydantic",
+      "version": "2.14.1",
+      "wheelSha256": "9195d967ec791692a04438115466764fb8b9a27b31f14a760437694f40d6b454",
+      "recordSha256": "0a773819f5bdbf0bd9959ae2b05772d2beab57a19d91d8fb63aa05b043fcbafe"
+    },
+    {
+      "name": "pydantic_core",
+      "version": "2.50.1",
+      "wheelSha256": "93ba4e9d8210d941c200431a56b2c0400b131865947903937ed3ec5404307d2e",
+      "recordSha256": "56ff3f46c4480a3255d61b6d23f80e1c0ecef19267a9bd2379c65c3f0a5e810b"
+    },
+    {
+      "name": "tzfpy",
+      "version": "2.1.1",
+      "wheelSha256": "cf9811d3f9f7188304605aeca644f23e027cdbf99e909a78a3e0d231ac452bdf",
+      "recordSha256": "7edab90bcac403a92a4ff7c2203407d7e1755c244300ce6f535b77cd1651fddf"
+    },
+    {
+      "name": "annotated-types",
+      "version": "0.8.0",
+      "wheelSha256": "f072f4d804ea359e4eaf198b1af7a8b0943881a87f31bb764f8bf219bb9419e0",
+      "recordSha256": "32d25d8860ed8fb965af8c175f9f6d4579e6ab83de779f8fbd23b393e84fdbbb"
+    },
+    {
+      "name": "anyio",
+      "version": "4.15.1",
+      "wheelSha256": "6152fdbbf9a77fdec97731721bebf7c4c44f7c29b424b0065826173efc7ed101",
+      "recordSha256": "a6d76bf9fd7090d84b32341bd775fd3781ae57cb1a82588715dffc15d0440b42"
+    },
+    {
+      "name": "httpx2",
+      "version": "2.16.0",
+      "wheelSha256": "fd2c5d7909e8d86fe92d53020c310ca0e4e431b838c207c5754b9bbf0308d49a",
+      "recordSha256": "a55dd48e11d2c770b277de1e83ce3ed4fd8aab6f514d9063bf307a3be5c02f4b"
+    },
+    {
+      "name": "httpcore2",
+      "version": "2.16.0",
+      "wheelSha256": "5c4358319f2602d984ad93182c9fee5160f22e9da7babdda870a5e7c4e2dc34f",
+      "recordSha256": "ee70b8da3bbeb58f8ccba668db6f474fd08295c2fb082cff89b07c63b57dbe80"
+    },
+    {
+      "name": "jsonschema",
+      "version": "4.26.0",
+      "wheelSha256": "d489f15263b8d200f8387e64b4c3a75f06629559fb73deb8fdfb525f2dab50ce",
+      "recordSha256": "16b10ca9e661c57fbc7fc10325aca910d996da9e27c090db2cff64cb85cc5937"
+    },
+    {
+      "name": "opentelemetry-api",
+      "version": "1.45.1",
+      "wheelSha256": "b31553efa588ae44bc306f863c785c5333a9ecc091248c6ee68b4b6c87fdedfb",
+      "recordSha256": "2cb1a6ef68670da89d5fff287dcf74de52124b96ee1e1b2c55628d79cee08fa5"
+    },
+    {
+      "name": "PyJWT",
+      "version": "2.15.1",
+      "wheelSha256": "42d59d631f7768a1028a64c7ff581a9bf7519804daf91fc5b6c56e30eec5e193",
+      "recordSha256": "64948a988d0f170ceebd88a606c3f5c3b9ed5fbd096449687e69562d16be3f30"
+    },
+    {
+      "name": "python-multipart",
+      "version": "0.0.32",
+      "wheelSha256": "ff6d3f776f16878c894e52e107296ffc890e913c611b1a4ec6c44e2821fe2e23",
+      "recordSha256": "fe7d0f8589120407eee0446d64e6cdd4f4c26706d6f336aebdefaa8b504abbd9"
+    },
+    {
+      "name": "sse-starlette",
+      "version": "3.6.0",
+      "wheelSha256": "e4dfa4d237d2712cb2b4d4918eda9b457cd6b44bbecdc838af75de836565bafd",
+      "recordSha256": "d085fb8f47d114616d2a8e785b3f67681350ae6412ee583f14e7fe0e5b564b24"
+    },
+    {
+      "name": "starlette",
+      "version": "1.10.0",
+      "wheelSha256": "478c0ab3b4ced6e82719849c118fa406f0278a3499c1a898cd15cd31bdc38ce4",
+      "recordSha256": "ddbb429e353d55c18b858c7253fc15e9a9a0fab0d08e62691fbc914564eec02d"
+    },
+    {
+      "name": "typing_extensions",
+      "version": "4.16.0",
+      "wheelSha256": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8",
+      "recordSha256": "b2b29b17130655534d101b05b9a37c58b63c51a0d9fa09dfd0a3e3a6881d6a23"
+    },
+    {
+      "name": "typing-inspection",
+      "version": "0.4.4",
+      "wheelSha256": "65b8397ba37ccbce054456aaccddfc91e6e3083c92824df348d96ca832f3f147",
+      "recordSha256": "10b95fa603fd228affa1e3a53ad980bdab4f7363bebabb36d67419864e7a1448"
+    },
+    {
+      "name": "uvicorn",
+      "version": "0.54.0",
+      "wheelSha256": "505bdb0f318731d45f1f712071fc781a8981f6847a31c902c9f5e652d4f67faf",
+      "recordSha256": "f7e589c3e031995b9c85fc13b0255685cbf87b15c1eca7bd76ac119c67c401bb"
+    },
+    {
+      "name": "attrs",
+      "version": "26.1.0",
+      "wheelSha256": "c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309",
+      "recordSha256": "071534c04bc814d25033e64ee581691f69228019f6a53c621dff58c5c9c6ceec"
+    },
+    {
+      "name": "click",
+      "version": "8.5.0",
+      "wheelSha256": "255bc9599cf7748b4b1a446ccc735421bd08a2ae529a8b88597d3de5664ee360",
+      "recordSha256": "9fca4932169704e4b2badc42f82e4b381fc9a96e860e818996dcfaf0063af104"
+    },
+    {
+      "name": "cryptography",
+      "version": "50.0.2",
+      "wheelSha256": "9dab55f57c74c3cad24c323bacbbd04be4705ba6eb0d92e920b1fc4837ed5079",
+      "recordSha256": "5754233035091108fbe76b2bd94dfc9ea98e3057b5b536f9b4689e27614f132e"
+    },
+    {
+      "name": "h11",
+      "version": "0.16.0",
+      "wheelSha256": "63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86",
+      "recordSha256": "fa83fcec506310ef27455d776ed1b5a86b14746f2c48bc7fd29f41d2320630ea"
+    },
+    {
+      "name": "idna",
+      "version": "3.20",
+      "wheelSha256": "ab7ae7122974553370f0bdb919e1a960b2cd1bc1ef0276416d896db81c14582c",
+      "recordSha256": "e41a1a363f3ec18f590b447db65f13de7e67a63d8e58e45c746cb9503044075c"
+    },
+    {
+      "name": "jsonschema-specifications",
+      "version": "2025.9.1",
+      "wheelSha256": "98802fee3a11ee76ecaca44429fda8a41bff98b00a0f2838151b113f210cc6fe",
+      "recordSha256": "71ae7ef15f19c06751fdc1583680439e9c84c6fce869485b8c3250c5333c1110"
+    },
+    {
+      "name": "referencing",
+      "version": "0.37.0",
+      "wheelSha256": "381329a9f99628c9069361716891d34ad94af76e461dcb0335825aecc7692231",
+      "recordSha256": "7175675418ce7cdb89553fde693ca30586c6da03b5fabb09748ea182687ed293"
+    },
+    {
+      "name": "rpds-py",
+      "version": "2026.9.1",
+      "wheelSha256": "addeda51556dac7c1a2f14cda62db8b621cd12afba3091d03a96c72932387eab",
+      "recordSha256": "50b1eb764eb36f216058eed16e7ad5a032d45382ea244cfa5f59f8eb02108e6d"
+    },
+    {
+      "name": "truststore",
+      "version": "0.10.5",
+      "wheelSha256": "9aaaedaefaf06d8b206278cf8b5012bc897f485a874503501e12d776df78951c",
+      "recordSha256": "34fa467d62b1fbb7c0c12f3e36f2de351d7f771d98b19260d56cf88dd717d7ad"
+    },
+    {
+      "name": "cffi",
+      "version": "2.1.1",
+      "wheelSha256": "c1453022f490d2459a11819d83ad1d586e9ff65a12ac3e705ffebd46d3685dcf",
+      "recordSha256": "acd27c035e1b31d67aed04d0271aa513b2a975ad5943a4de4db19b31ff1ecaf2"
+    },
+    {
+      "name": "pycparser",
+      "version": "3.12",
+      "wheelSha256": "a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e",
+      "recordSha256": "db66bc80384e6fa1411c81531d5acd40567fbe161774ca6718379052e5b501c0"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "camofox-browser",
+  "name": "Factory guarded public reader",
+  "version": "1.18.1",
+  "interactive": {"mode": "off"},
+  "plugins": {
+    "youtube": {"enabled": false},
+    "persistence": {"enabled": false},
+    "vnc": {"enabled": false},
+    "factory": {"enabled": true, "fixtureOrigins": []}
+  }
+}

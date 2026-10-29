@@ -1,0 +1,48 @@
+{
+  "date": "2026-10-28",
+  "branch": "feature/reliable-intake-and-leads",
+  "command": "FACTORY_BROWSER_EXECUTABLE=/usr/bin/chromium npm test",
+  "tests": 1420,
+  "passed": 1420,
+  "failed": 0,
+  "cancelled": 0,
+  "skipped": 0,
+  "durationMs": 314303.960044,
+  "exitCode": 0,
+  "node": "24.19.0",
+  "npm": "11.9.0",
+  "uiSmoke": {
+    "viewWidthCombinations": 6,
+    "violations": 0,
+    "overflow": 0,
+    "modelCalls": 0,
+    "providerCalls": 0
+  },
+  "auditKnownAdvisories": 0,
+  "liveModelCompletionVerified": false,
+  "liveLeadProviderVerified": false,
+  "vpsDeployed": false,
+  "limitations": [
+    "ChatGPT endpoint denied by current running network policy",
+    "No Google Places key configured in running instance",
+    "Real business pilot and VPS access/domain/TLS/login verification outstanding"
+  ],
+  "leadReliabilityFollowUp": {
+    "date": "2026-10-28",
+    "fullSuite": {
+      "tests": 1469,
+      "pass": 1469,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "durationMs": 299277.048195
+    },
+    "focusedLeadTests": 103,
+    "browserTests": 5,
+    "fictionalCohortProof": "visuals/lead-pipeline-proof.json",
+    "liveBusinessesTested": 0,
+    "liveSourceCalls": 0,
+    "sustainedLeadQualityProven": false,
+    "vpsTimerStarted": false
+  }
+}

@@ -1,0 +1,12 @@
+import {z} from 'zod';import path from 'node:path';import {hash,now,fail,safeRelative} from './contracts.mjs';
+import {treeHashes} from './proposal.mjs';import {record,records,saveRecord} from './studio-state.mjs';
+const schema=z.object({jobId:z.string().regex(/^[a-z0-9][a-z0-9-]{3,100}$/),siteDigest:z.string().regex(/^[a-f0-9]{64}$/),requestId:z.string().regex(/^[a-z0-9][a-z0-9-]{7,95}$/),verdict:z.enum(['accepted','changes_requested']),note:z.string().trim().min(8).max(3000),desktopReviewed:z.literal(true),phoneReviewed:z.literal(true),operatorAttestation:z.literal(true)}).strict();
+export const STUDIO_REVIEW_OPERATIONS={studio_review_record:{description:'Record an explicit operator-declared review of exact API-proposal bytes. Does not establish customer approval, media rights, outreach or publication.',schema,readOnly:false}};
+export function latestStudioReview(store,job){return records(store,'studio_review').find(r=>r.jobId===job.id&&r.siteDigest===job.outputs.siteDigest)||null;}
+export async function recordStudioReview(store,input){
+ const id='studio-review-'+hash(input.requestId).slice(0,24),prior=record(store,id,'studio_review'),digest=hash(input);if(prior){if(prior.inputDigest!==digest)fail('IDEMPOTENCY_CONFLICT','This review request already binds another exact verdict');return {...prior,replayed:true};}
+ const job=store.job(input.jobId);if(!job.input.apiConcept&&!job.input.modelSelection?.startsWith('api/'))fail('STUDIO_REVIEW_SCOPE','Use the original review checkpoint for legacy work');
+ if(job.state!=='review_ready'||job.outputs.qaPass!==true||job.outputs.siteDigest!==input.siteDigest||!job.outputs.siteRelative)fail('STALE_REVIEW','Review must identify the exact completed private proposal');
+ if(hash(await treeHashes(path.join(store.stateRoot,safeRelative(job.outputs.siteRelative))))!==input.siteDigest)fail('STALE_PROPOSAL','Proposal bytes changed after checking; no verdict was recorded');
+ const result={id,inputDigest:digest,jobId:job.id,siteDigest:input.siteDigest,verdict:input.verdict,note:input.note,at:now(),reviewer:'operator_declared',desktopReviewed:true,phoneReviewed:true,scope:'private_concept_quality_only',ownerAcceptance:'unconfirmed',publicRelease:false};saveRecord(store,id,'studio_review',result);store.event(job.id,'studio.review_recorded','Operator declared an exact-version private-concept verdict',{reviewId:id,siteDigest:input.siteDigest,verdict:input.verdict});return result;
+}

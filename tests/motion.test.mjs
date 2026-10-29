@@ -1,0 +1,43 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import { readFile } from 'node:fs/promises';
+const require = createRequire(import.meta.url);
+const { chromium } = require('playwright');
+const runtime = new URL('../runtime/motion.js', import.meta.url);
+const markup = '<style>body{margin:0}header{height:1100px}section{height:600px;padding:20px}h2{font:40px sans-serif}</style><header><h1>Visible first screen</h1><a href="#story">Explore</a></header><section id="story"><div data-scroll-depth="20"><h2 data-reveal="settle">Real story, always available</h2></div></section>';
+
+test('native motion really animates on scroll, cancels live and resets desktop depth on phone', async t => {
+  const browser = await chromium.launch({ executablePath: process.env.FACTORY_BROWSER_EXECUTABLE, headless: true }); t.after(() => browser.close());
+  const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, reducedMotion: 'no-preference' });
+  await page.setContent(markup); await page.addScriptTag({ content: await readFile(runtime, 'utf8') });
+  assert.equal(await page.locator('h1').isVisible(), true);
+  await page.evaluate(() => scrollTo(0, 820));
+  await page.waitForFunction(() => document.querySelector('[data-reveal]').dataset.motionState === 'running');
+  const a = await page.locator('[data-reveal]').evaluate(e => getComputedStyle(e).transform);
+  await page.waitForTimeout(90);
+  const b = await page.locator('[data-reveal]').evaluate(e => getComputedStyle(e).transform);
+  assert.notEqual(a, b, 'observed movement, not merely an attribute');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.waitForFunction(() => document.getAnimations().filter(a => a.playState === 'running').length === 0);
+  assert.equal(await page.locator('[data-reveal]').evaluate(e => getComputedStyle(e).opacity), '1');
+  assert.equal(await page.locator('[data-scroll-depth]').evaluate(e => e.style.transform), '');
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.evaluate(() => scrollTo(0, 950));
+  await page.waitForFunction(() => document.querySelector('[data-scroll-depth]').style.transform !== '');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForFunction(() => document.querySelector('[data-scroll-depth]').style.transform === '');
+  await page.evaluate(() => { scrollTo(0, document.body.scrollHeight); scrollTo(0, 0); });
+  assert.equal(await page.locator('h1').isVisible(), true);
+});
+test('missing animation/observer APIs leave every content element visible and navigation immediate', async t => {
+  const browser = await chromium.launch({ executablePath: process.env.FACTORY_BROWSER_EXECUTABLE, headless: true }); t.after(() => browser.close());
+  const page = await browser.newPage(); const errors = []; page.on('pageerror', e => errors.push(e.message));
+  await page.setContent(markup);
+  await page.evaluate(() => { window.IntersectionObserver = undefined; Element.prototype.animate = undefined; });
+  await page.addScriptTag({ content: await readFile(runtime, 'utf8') });
+  await page.locator('a').click();
+  assert.equal(await page.locator('h2').isVisible(), true);
+  assert.equal(await page.locator('h2').evaluate(e => getComputedStyle(e).opacity), '1');
+  assert.deepEqual(errors, []);
+});

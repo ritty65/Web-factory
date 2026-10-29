@@ -1,0 +1,161 @@
+{
+  "kind": "local-read-only-smoke",
+  "fixtureNotLiveIntegrationProof": true,
+  "views": [
+    {
+      "name": "current",
+      "width": 1440,
+      "overflow": false,
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "name": "current",
+      "width": 390,
+      "overflow": false,
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "name": "current",
+      "width": 320,
+      "overflow": false,
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "name": "concept",
+      "width": 1440,
+      "overflow": false,
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "name": "concept",
+      "width": 390,
+      "overflow": false,
+      "violations": [],
+      "incomplete": [
+        "color-contrast"
+      ]
+    },
+    {
+      "name": "concept",
+      "width": 320,
+      "overflow": false,
+      "violations": [],
+      "incomplete": [
+        "color-contrast"
+      ]
+    },
+    {
+      "name": "concept-leads",
+      "width": 1440,
+      "overflow": false,
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "name": "concept-leads",
+      "width": 390,
+      "overflow": false,
+      "violations": [],
+      "incomplete": [
+        "color-contrast"
+      ]
+    },
+    {
+      "name": "concept-leads",
+      "width": 320,
+      "overflow": false,
+      "violations": [],
+      "incomplete": [
+        "color-contrast"
+      ]
+    },
+    {
+      "name": "concept-brief",
+      "width": 1440,
+      "overflow": false,
+      "violations": [],
+      "incomplete": [
+        "color-contrast"
+      ]
+    },
+    {
+      "name": "concept-brief",
+      "width": 390,
+      "overflow": false,
+      "violations": [],
+      "incomplete": [
+        "color-contrast"
+      ]
+    },
+    {
+      "name": "concept-brief",
+      "width": 320,
+      "overflow": false,
+      "violations": [],
+      "incomplete": [
+        "color-contrast"
+      ]
+    },
+    {
+      "name": "concept-review",
+      "width": 1440,
+      "overflow": false,
+      "violations": [],
+      "incomplete": [
+        "color-contrast"
+      ]
+    },
+    {
+      "name": "concept-review",
+      "width": 390,
+      "overflow": false,
+      "violations": [],
+      "incomplete": [
+        "color-contrast"
+      ]
+    },
+    {
+      "name": "concept-review",
+      "width": 320,
+      "overflow": false,
+      "violations": [],
+      "incomplete": [
+        "color-contrast"
+      ]
+    },
+    {
+      "name": "concept-plan",
+      "width": 1440,
+      "overflow": false,
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "name": "concept-plan",
+      "width": 390,
+      "overflow": false,
+      "violations": [],
+      "incomplete": [
+        "color-contrast"
+      ]
+    },
+    {
+      "name": "concept-plan",
+      "width": 320,
+      "overflow": false,
+      "violations": [],
+      "incomplete": [
+        "color-contrast"
+      ]
+    }
+  ],
+  "functional": [
+    "app and isolated preview health; zero jobs; uncredentialed mutation rejected",
+    "concept search/filter; evidence dialog; brief handoff; phone review; explicitly labelled demo decision"
+  ],
+  "pageErrors": []
+}

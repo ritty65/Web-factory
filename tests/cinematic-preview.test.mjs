@@ -1,0 +1,17 @@
+import test from 'node:test';import assert from 'node:assert/strict';import path from 'node:path';import os from 'node:os';
+import {mkdtemp,rm,mkdir,writeFile} from 'node:fs/promises';import sharp from 'sharp';import {chromium} from 'playwright';
+import {initialize,openStore} from '../src/db.mjs';import {createService} from '../src/service.mjs';import {startServer} from '../src/server.mjs';import {stageRuntime} from '../src/craft.mjs';
+import {cinematicTags} from './helpers-director.mjs';
+test('WebGL uses an anonymous local texture inside the actual opaque sandbox preview',async t=>{
+ const root=await mkdtemp(path.join(os.tmpdir(),'factory-cinematic-preview-')),options={stateRoot:path.join(root,'state'),dbPath:path.join(root,'db')};await initialize(options);const store=openStore(options),job=store.createJob({kind:'qa',input:{fixtureOnly:true}});
+ const relative='owned-preview-fixture',site=path.join(store.stateRoot,relative);await stageRuntime(site,{designProfile:'cinematic-director-v2'});await mkdir(path.join(site,'assets'),{recursive:true});
+ await writeFile(path.join(site,'assets/pattern.png'),await sharp({create:{width:400,height:300,channels:3,background:'#283d4d'}}).composite([{input:Buffer.from('<svg width="400" height="300"><rect width="200" height="300" fill="#db9b52"/></svg>')}]).png().toBuffer());
+ await writeFile(path.join(site,'index.html'),`<!doctype html><html lang="en"><head><title>Owned private preview fixture</title><meta name="viewport" content="width=device-width,initial-scale=1">${cinematicTags}<style>#picture{position:relative;width:400px}img{display:block;width:100%;height:auto}</style></head><body><main><h1>Owned fixture, not generated customer work</h1><div id="picture" data-effect="distortion"><img src="assets/pattern.png" width="400" height="300" alt="Owned pattern"></div></main></body></html>`);
+ store.updateJob(job.id,{outputs:{siteRelative:relative}});const app=await startServer(createService(store,{autoRun:false}),{port:0,previewPort:0}),browser=await chromium.launch({headless:true,executablePath:process.env.FACTORY_BROWSER_EXECUTABLE});
+ t.after(async()=>{await browser.close();await app.close();store.close();await rm(root,{recursive:true,force:true});});
+ const page=await browser.newPage({viewport:{width:1280,height:720}}),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(app.previewUrl+'/site/'+job.id+'/index.html');await page.waitForFunction(()=>document.querySelector('img').complete&&document.querySelector('img').naturalWidth>0);
+ assert.equal(await page.evaluate(()=>self.origin),'null');assert.equal(await page.locator('img').getAttribute('crossorigin'),'anonymous');
+ const b=await page.locator('img').boundingBox();await page.mouse.move(b.x+100,b.y+100);await page.waitForTimeout(120);assert.equal(await page.locator('#picture').getAttribute('data-cinematic-gl'),'ready');assert.equal(await page.locator('canvas').count(),1);assert.deepEqual(errors,[]);
+ const response=await page.request.get(app.previewUrl+'/site/'+job.id+'/assets/pattern.png',{headers:{Origin:'null','Sec-Fetch-Dest':'image'}});assert.equal(response.headers()['access-control-allow-origin'],'null');assert.equal(response.headers()['access-control-allow-credentials'],undefined);
+ const privateResponse=await page.request.get(app.url+'/api/session',{headers:{Origin:'null','Sec-Fetch-Dest':'image'}});assert.equal(privateResponse.status(),403);assert.equal(privateResponse.headers()['access-control-allow-origin'],undefined);
+});

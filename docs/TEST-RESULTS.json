@@ -1,0 +1,14 @@
+{
+  "date": "2026-10-28",
+  "command": "FACTORY_BROWSER_EXECUTABLE=/usr/bin/chromium npm test",
+  "node": "24.19.0",
+  "npm": "11.9.0",
+  "tests": 1313,
+  "passed": 1313,
+  "failed": 0,
+  "skipped": 0,
+  "cancelled": 0,
+  "durationMs": 239677.696459,
+  "exitCode": 0,
+  "coverage": "Offline fixtures and local browser tests; no real external model, business-source, outreach or customer deployment."
+}

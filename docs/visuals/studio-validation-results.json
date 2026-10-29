@@ -1,0 +1,52 @@
+{
+  "at": "2026-10-28T21:42:30.666Z",
+  "verification": "real_local_execution_with_fictional_external_responses",
+  "tests": {
+    "command": "FACTORY_BROWSER_EXECUTABLE=/usr/bin/chromium npm test",
+    "passed": 1529,
+    "failed": 0,
+    "skipped": 0,
+    "cancelled": 0,
+    "durationMs": 389949.937604
+  },
+  "policy": {
+    "production": "d4d5aa7056ead16c18ea1239562ac546cc0a8b5ea7546e77857ffa954b60e228",
+    "qa": "fff1fafaaf696263a8cf1a4647ff1597b8603232c51fff95abf9a54b101ba754"
+  },
+  "dependencies": {
+    "appKnownAdvisories": 0,
+    "camofoxKnownAdvisories": 0,
+    "python": "3.12.14",
+    "node": "24.19.0",
+    "scrapling": "0.5",
+    "duckdb": "1.5.6",
+    "camofoxPackage": "1.18.1",
+    "genuineCamoufoxVerified": false
+  },
+  "threeBusinessProof": {
+    "receipt": "studio-pilot-proof.json",
+    "sourceCheckedFixtures": 3,
+    "packages": 3,
+    "pageViewportChecks": 75,
+    "realProviderCalls": 0,
+    "operatorAcceptedRealProposals": 0,
+    "actualVpsHours": 0
+  },
+  "photoPath": {
+    "realUploadedFixture": true,
+    "pixelsAttachedToVision": true,
+    "privateProvenanceVerified": true,
+    "realClientPhoto": false
+  },
+  "deployment": {
+    "systemdStaticVerifyPassed": true,
+    "installerShellSyntaxPassed": true,
+    "actualHostingerDeployment": false
+  },
+  "limitations": [
+    "Source replies and AI replies were controlled fixtures, not live lead or model-quality evidence.",
+    "Three schedule dates were simulated; elapsed runtime is not a 72-hour VPS soak.",
+    "Camofox guard has a separate Chromium-backed integration test. Genuine Camoufox launch remains a live prerequisite.",
+    "Fictional templates are pipeline fixtures and do not represent promised design quality."
+  ]
+}

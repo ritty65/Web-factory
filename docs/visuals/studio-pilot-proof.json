@@ -1,0 +1,148 @@
+{
+  "schema": 1,
+  "at": "2026-10-28T21:26:27.058Z",
+  "verification": "fictional_provider_responses_real_local_pipeline",
+  "realProviderCalls": 0,
+  "actualVpsHours": 0,
+  "sourceCheckedFixtures": 3,
+  "proposals": [
+    {
+      "jobId": "job-dbe973c273ffba15b058",
+      "assessmentId": "assessment-07dae4691748e96554559714",
+      "simulatedChicagoDate": "2026-10-28",
+      "qaPass": true,
+      "pageViewportChecks": 25,
+      "siteDigest": "493924cda8ac8aa8383fbacb81c5a6ae04476bfe99c3fa438b04fa8604ec4279",
+      "archiveSha256": "eae98fdd9a8b08c2a751c18fca5bb5a85a06a0995d047a559e9dfbc4fc1f6fb9",
+      "humanDecision": null,
+      "photoCount": 0
+    },
+    {
+      "jobId": "job-3586e6e98bb2cb569218",
+      "assessmentId": "assessment-bf62861bee3f0e7d86cf416a",
+      "simulatedChicagoDate": "2026-10-29",
+      "qaPass": true,
+      "pageViewportChecks": 25,
+      "siteDigest": "6cd55267e3eb9465ebf6d5e11e972357863dcc2b6462eb01266fad77cfabdddf",
+      "archiveSha256": "c76c835e438361c82748391e58b30299dc963d324c6563ef92975c44d42c9bf3",
+      "humanDecision": null,
+      "photoCount": 0
+    },
+    {
+      "jobId": "job-95650573f75e4bfdae33",
+      "assessmentId": "assessment-64a1da56aff2d2e29fe27003",
+      "simulatedChicagoDate": "2026-10-30",
+      "qaPass": true,
+      "pageViewportChecks": 25,
+      "siteDigest": "dc6d51c128f95fa30f716decc18d2217f9f3bf3ef7ef8bb3357fe7a76bdbc43d",
+      "archiveSha256": "f2b1e5fc9aa060ee00dbd3a9e783e6806c880bc488ceb02afdaab5aa3947801a",
+      "humanDecision": null,
+      "photoCount": 0
+    }
+  ],
+  "modelRoutes": [
+    {
+      "provider": "deepseek",
+      "images": false,
+      "model": "deepseek-chat"
+    },
+    {
+      "provider": "deepseek",
+      "images": false,
+      "model": "deepseek-chat"
+    },
+    {
+      "provider": "openrouter",
+      "images": true,
+      "model": "openai/gpt-4.1"
+    },
+    {
+      "provider": "deepseek",
+      "images": false,
+      "model": "deepseek-chat"
+    },
+    {
+      "provider": "deepseek",
+      "images": false,
+      "model": "deepseek-chat"
+    },
+    {
+      "provider": "openrouter",
+      "images": true,
+      "model": "openai/gpt-4.1"
+    },
+    {
+      "provider": "deepseek",
+      "images": false,
+      "model": "deepseek-chat"
+    },
+    {
+      "provider": "deepseek",
+      "images": false,
+      "model": "deepseek-chat"
+    },
+    {
+      "provider": "openrouter",
+      "images": true,
+      "model": "openai/gpt-4.1"
+    },
+    {
+      "provider": "deepseek",
+      "images": false,
+      "model": "deepseek-chat"
+    },
+    {
+      "provider": "deepseek",
+      "images": false,
+      "model": "deepseek-chat"
+    },
+    {
+      "provider": "openrouter",
+      "images": true,
+      "model": "openai/gpt-4.1"
+    },
+    {
+      "provider": "deepseek",
+      "images": false,
+      "model": "deepseek-chat"
+    },
+    {
+      "provider": "deepseek",
+      "images": false,
+      "model": "deepseek-chat"
+    },
+    {
+      "provider": "openrouter",
+      "images": true,
+      "model": "openai/gpt-4.1"
+    },
+    {
+      "provider": "deepseek",
+      "images": false,
+      "model": "deepseek-chat"
+    },
+    {
+      "provider": "deepseek",
+      "images": false,
+      "model": "deepseek-chat"
+    },
+    {
+      "provider": "openrouter",
+      "images": true,
+      "model": "openai/gpt-4.1"
+    }
+  ],
+  "spendFixtureMicros": 437100,
+  "publicRelease": false,
+  "humanAcceptedProposals": 0,
+  "limits": [
+    "Source replies and AI replies were controlled fixtures, not live lead or model-quality evidence.",
+    "Three schedule dates were simulated; elapsed runtime is not a 72-hour VPS soak.",
+    "Camofox guard has a separate Chromium-backed integration test. Genuine Camoufox launch remains a live prerequisite.",
+    "Fictional templates are pipeline fixtures and do not represent promised design quality."
+  ],
+  "captures": {
+    "autopilot": "actual completed fictional three-proposal state",
+    "setup": "separate identical fictional configuration, final layout capture"
+  }
+}

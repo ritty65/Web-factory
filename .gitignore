@@ -1,0 +1,17 @@
+node_modules/
+.env
+.env.*
+*.log
+.artifacts/
+
+.factory-state/
+.factory-tools/
+*.sqlite3
+*.sqlite3-*
+*.db
+playwright-report/
+test-results/
+tools/placeroot-runtime/.venv/
+tools/placeroot-runtime/cache/
+tools/placeroot-runtime/extensions/
+__pycache__/

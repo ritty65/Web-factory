@@ -1,0 +1,899 @@
+{
+  "provider": "placeroot",
+  "packageVersion": "0.12.0",
+  "tools": [
+    {
+      "name": "find_places",
+      "title": "Find places",
+      "description": "Find named places, either near a point or inside an area's boundary.\n\n    Three mutually exclusive modes:\n    - Point + radius: pass lat and lon (radius_m defaults to 1000m), or the\n      same center as `where` — a {\"lat\", \"lon\"} dict, a GERS id, or a\n      free-text place name (\"Alamo Square, SF\"), resolved here, so a named\n      search is one hop: no geocode()/resolve_place() call first. lat/lon\n      or where, not both, and neither with division_id/area. An id/name\n      `where` adds a compact \"resolved\": {\"name\", \"id\", \"lat\", \"lon\",\n      \"matched_by\"} (absent for lat/lon or a {lat,lon} where); an ambiguous\n      name returns {\"error\": \"ambiguous_place\", \"candidates\": [...]} rather\n      than picking one. Results are nearest-first around that center.\n    - Division polygon: pass division_id (a GERS division id, e.g. one from\n      an admin-hierarchy chain) instead of lat/lon. Results are every matching place whose\n      point falls inside that division's true boundary polygon — no radius\n      to guess, and no circle clipping a coastline or straddling a border.\n      Results are ordered by name (there's no reference point to rank\n      distance from).\n    - Area by name: pass area (\"Palo Alto\") to get the division-polygon mode\n      without first resolving the id yourself. The name is resolved with the\n      same ranking geocode/resolve_place use; the resolved division is\n      echoed back as \"area\" on the response so it's clear which one was\n      searched. A name matching several equally-ranked divisions returns\n      {\"error\": \"ambiguous_area\", \"candidates\": [...]} listing their\n      division_ids rather than silently picking one, and an unresolvable\n      name returns {\"error\": \"not_found\"} rather than an empty result that\n      would read as \"this place has no coffee shops\".\n\n    category matches Overture's taxonomy (e.g. 'coffee_shop', 'restaurant',\n    'grocery'); name is a substring match on the place name — both compose\n    with either mode. Results include operating_status (\"in business\" /\n    \"permanently closed\" / null when unknown) — a business-lifecycle\n    signal, NOT opening hours; this data has no open-now information —\n    and a compact trust_note calibrated from confidence and that status.\n\n    min_confidence (0.0-1.0) keeps only rows whose confidence score is at\n    least that value; out-of-range values return a bad_request error.\n    operating_status filters to a single status (see the schema's enum for\n    accepted relabeled/raw values); \"permanently closed\"/\"closed\" also\n    match Overture's separate \"closed_permanently\" raw value, since both\n    relabel the same way. Unrecognized values return a bad_request error.\n\n    brand is a substring match on the place's brand name (e.g. 'Starbucks').\n    Brand data is sparse — most independent businesses have no brand at all,\n    so brand=X narrows results down to that chain only; the absence of a\n    result does NOT mean \"not a Starbucks\", it may just mean brand isn't\n    populated for that place. has_website/has_phone filter on whether a\n    place has any website/phone entries at all (presence, not content) —\n    each result row carries brand (string or null) and has_website/has_phone\n    (booleans) so an agent can see why a place matched, but the full\n    websites/phones arrays are only returned by place_details.\n\n    Every filter above composes with either mode, and each is a silent\n    no-op (not an error) if the column it needs (confidence /\n    operating_status / brand / websites / phones) is absent from the active\n    dataset — see degraded_fields() on the response.\n\n    name has two fallback tiers (point + radius mode only, #373) for when\n    the literal substring search finds nothing: an alternate-spelling match\n    (\"Munich\" -> a place named \"München\") then a typo-tolerant fuzzy match\n    (\"Startbucks\" -> \"Starbucks\"). A row found either way carries\n    \"matched_by\": \"alt_name\" | \"fuzzy\" (absent on an ordinary match), and a\n    top-level \"note\" names the spelling actually matched.\n\n    Returns {\"results\": [...]}, plus truncated/omitted_count if the answer\n    didn't fit the token budget. Returns a structured {\"error\": \"bad_request\",\n    ...} if no mode's inputs are given (or more than one is), {\"error\":\n    \"not_found\", ...} if division_id/area doesn't match any known division, or\n    a structured {\"error\": ...} if the upstream dataset is unavailable or\n    missing columns this tool depends on. If a category filter was given and\n    it matched nothing (in either mode), a non-fatal \"note\" field hints that\n    the category slug may be wrong and points at search_categories.\n\n    A truncated answer — either token-budget-trimmed or because more\n    matching rows exist beyond limit — also carries \"cursor\"; pass it back\n    unchanged, with every other argument identical, to fetch the next page.\n    cursor is only ever issued for a literal or ambiguity-free match: an\n    answer built from #373's alt-name/fuzzy name fallback never carries one\n    (those pools are small; ROADMAP §4.4). A cursor for a different query,\n    or one that's malformed, returns {\"error\": \"bad_cursor\", ...} naming\n    the mismatch; a cursor issued against an older Overture release is\n    honored anyway, against the current release, with a one-line \"note\"\n    that rows may have shifted.\n\n    detail picks how much of each row comes back (ROADMAP §4.5, roadmap\n    feature 5): \"compact\" (the DEFAULT) is {id, name, category, lat, lon,\n    distance_m, trust} — trust is a tier string (\"strong\"/\"ok\"/\"weak\"/\n    \"unknown\") derived from the same confidence/operating-status signals\n    as \"full\"'s trust_note, so the two can never disagree; the payload\n    also carries one \"trust_legend\" line explaining the tiers. compact\n    keeps lat/lon (unlike \"ids\") so a composed call feeding these rows\n    into a map-rendering tool still has coordinates under the default\n    tier. \"ids\" is just {id,\n    distance_m} — deliberately coordinate-free, the cheapest shape, for\n    chaining straight into a batch id lookup or place_details. \"full\" is\n    every field, unchanged from before this param existed, including\n    trust_note's prose. division-polygon rows have no distance_m at any\n    tier (no reference point to measure from) — the key is omitted, never\n    null; they still carry lat/lon at every tier but \"ids\". detail is\n    presentation only: it does not affect which rows match or their\n    order, is NOT part of a cursor's query identity, and a cursor issued\n    under one detail continues correctly under a different one.\n    Projection happens before the token budget is applied, so a smaller\n    detail tier fits more rows per answer — that's the point of a tier\n    smaller than \"full\". Unrecognized values return a bad_request error\n    naming the accepted ones.\n\n    categories (mutually exclusive with category — passing both is a\n    bad_request) runs a checklist of up to 5 slugs in ONE scan instead of\n    category's one slug, each matched with identical substring/prefix\n    semantics. group_by_category=False (the default) merges every\n    category's matches into one nearest-first list, same shape and cursor\n    pagination as a single category (categories, sorted, is part of the\n    cursor's query identity). group_by_category=True instead buckets the\n    answer as {\"results\": {category: [rows...]}}, up to `limit` rows PER\n    category — a category with zero matches is simply absent from the\n    dict. Grouped answers carry no cursor at all (each category is already\n    limit-bounded from a single scan; page a specific one further by\n    re-running with category=<that slug> instead). More than 5 slugs, or\n    categories together with category, both return a bad_request error;\n    group_by_category=True together with a non-null cursor is also a\n    bad_request (there is nothing to continue). The category-miss \"note\"\n    (see above) also covers categories: it fires when the scan matched\n    none of the requested slugs at all.\n\n    within = {\"minutes\", \"mode\"?, \"of\"?} (roadmap §4.2) keeps only results\n    truly reachable from `of` within `minutes` by street-graph `mode` —\n    the real graph, not a radius guess; radius_m is ignored when set. `of`\n    (a LocationRef) defaults to the search center — lat/lon or whatever\n    `where` resolved to; required in division_id/area mode. An id/name `of`\n    adds a \"resolved\" echo, unless `where` already claimed that key, in\n    which case `of`'s match is named in the note. The answer gets a short\n    reachability note. A cold graph returns\n    {\"error\": \"needs_confirm\", ...} — retry with confirm=true once the\n    user agrees to wait (5-25s).\n    ",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Lat"
+          },
+          "lon": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Lon"
+          },
+          "radius_m": {
+            "default": 1000,
+            "title": "Radius M",
+            "type": "number"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Category"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Name"
+          },
+          "min_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Min Confidence"
+          },
+          "operating_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Business-lifecycle status filter (relabeled or raw Overture value, case-insensitive). Default: no filter.",
+            "enum": [
+              "closed",
+              "closed_permanently",
+              "closed_temporarily",
+              "in business",
+              "open",
+              "permanently closed",
+              "temporarily closed"
+            ],
+            "title": "Operating Status"
+          },
+          "limit": {
+            "default": 10,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "brand": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Brand"
+          },
+          "has_website": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Has Website"
+          },
+          "has_phone": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Has Phone"
+          },
+          "division_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Division Id"
+          },
+          "area": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Area"
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Continuation cursor from a previous truncated answer; valid for the same query on the same data release.",
+            "title": "Cursor"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Row detail tier for find_places rows: 'ids' (id + distance_m only), 'compact' (id/name/category/lat/lon/distance_m/trust), or 'full' (every field, incl. trust_note prose). Default: compact.",
+            "enum": [
+              "ids",
+              "compact",
+              "full"
+            ],
+            "title": "Detail"
+          },
+          "categories": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Categories"
+          },
+          "group_by_category": {
+            "default": false,
+            "title": "Group By Category",
+            "type": "boolean"
+          },
+          "within": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Within"
+          },
+          "confirm": {
+            "default": false,
+            "title": "Confirm",
+            "type": "boolean"
+          },
+          "where": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Where"
+          }
+        },
+        "title": "find_placesArguments"
+      },
+      "outputSchema": {
+        "type": "object",
+        "anyOf": [
+          {
+            "type": "object",
+            "required": [
+              "results"
+            ],
+            "properties": {
+              "results": {
+                "type": [
+                  "array",
+                  "object"
+                ],
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "category": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lat": {
+                      "type": "number"
+                    },
+                    "lon": {
+                      "type": "number"
+                    },
+                    "distance_m": {
+                      "type": "number"
+                    },
+                    "trust": {
+                      "type": "string"
+                    },
+                    "trust_note": {
+                      "type": "string"
+                    },
+                    "operating_status": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "confidence": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "brand": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "has_website": {
+                      "type": "boolean"
+                    },
+                    "has_phone": {
+                      "type": "boolean"
+                    },
+                    "matched_by": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              },
+              "area": {
+                "type": "object"
+              },
+              "truncated": {
+                "type": "boolean"
+              },
+              "omitted_count": {
+                "type": "integer"
+              },
+              "cursor": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              },
+              "degraded_fields": {
+                "type": "array"
+              },
+              "trust_legend": {
+                "type": "string"
+              },
+              "category_resolved_from": {
+                "type": "string"
+              },
+              "resolved": {
+                "type": "object"
+              }
+            },
+            "additionalProperties": true
+          },
+          {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "string"
+              },
+              "detail": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          }
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "place_details",
+      "title": "Place details",
+      "description": "One place, in full: addresses, websites, phones, socials, brand,\n    source attribution, GERS id, confidence, operating status, and a\n    compact trust_note.\n\n    Resolve either by GERS id (the `id` field find_places and other tools\n    return) or by name + lat/lon (nearest name match within radius_m of\n    that point). Pass id, or pass name together with lat and lon — not\n    both. Long array fields (addresses, websites, phones, socials, sources)\n    are capped and never silently dropped: a truncated field carries a\n    matching \"<field>_omitted_count\". Returns {\"error\": \"not_found\", ...}\n    if nothing matches, or a structured {\"error\": ...} if the upstream\n    dataset is unavailable or missing columns this tool depends on.\n\n    When looking up by id, also pass near_lat/near_lon — the lat/lon from\n    the find_places (or other tool) row the id came from — so the lookup\n    can be narrowed to a ~50km box instead of scanning the whole dataset.\n    Ignored when resolving by name. Omitting it still works, just slower on\n    a cold, uncached id.\n\n    lang (#410) requests Overture's language-tagged name variant for this\n    place, when the data has one: `name` becomes the variant and\n    `name_primary` is added only when it differs. Default: the stored\n    `preferences()` lang, else the primary name unchanged. Never invented\n    or transliterated.\n    ",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Name"
+          },
+          "lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Lat"
+          },
+          "lon": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Lon"
+          },
+          "radius_m": {
+            "default": 200,
+            "title": "Radius M",
+            "type": "number"
+          },
+          "near_lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Near Lat"
+          },
+          "near_lon": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Near Lon"
+          },
+          "lang": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Result-language code (2-3 lowercase letters, e.g. \"de\"). Overture-tagged name variants only — never transliterated or invented. Default: stored preference, else the primary name.",
+            "title": "Lang"
+          }
+        },
+        "title": "place_detailsArguments"
+      },
+      "outputSchema": {
+        "type": "object",
+        "anyOf": [
+          {
+            "type": "object",
+            "additionalProperties": true
+          },
+          {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "string"
+              },
+              "detail": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          }
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "geocode",
+      "title": "Geocode a place name",
+      "description": "Free-text place name -> ranked candidate locations, from Overture divisions and places.\n\n    No Nominatim, no third-party geocoding API. Matches localities,\n    neighborhoods, regions, and countries by name (exact > prefix >\n    substring), falling back to named places if that doesn't fill `limit`.\n    Returns {\"results\": [{name, type, lat, lon, id (GERS), admin_context,\n    rank_score}, ...]}, budgeted like every other tool. Returns a structured\n    {\"error\": ...} instead of raising if the remote scan fails.\n\n    A trailing \"City, ST\"/\"City, Region\" suffix has resolved against a US\n    state or another region since #46; a trailing \"City, Country\" suffix\n    resolves the same way (#457) — \"Cambridge, UK\", \"Cambridge, GB\",\n    \"Cambridge, GBR\" and \"Cambridge, United Kingdom\" all constrain the\n    search to the UK's Cambridge, excluding any same-named division\n    elsewhere. `country` (ISO 3166-1 alpha-2, also accepting alpha-3 and\n    aliases like \"UK\"/\"USA\", case-insensitive) is the explicit form of the\n    same constraint, for a caller that already knows the country instead\n    of writing it into `query`. An unrecognized `country`, or one that\n    disagrees with a country/region suffix parsed off `query` itself,\n    returns {\"error\": \"bad_request\", ...} naming both. A comma-suffix that\n    names neither a region nor a country still searches the name half\n    alone rather than returning nothing, with a \"note\" naming the\n    unrecognized qualifier; a recognized country/region that matches\n    nothing degrades the same way, with a \"note\".\n\n    A query with no location context in it at all (a bare place name that\n    matches no division, e.g. \"Blue Bottle Roastery\") can't be bounded to a\n    region, so the places half of the search is skipped rather than\n    scanning the global places dataset — minutes, not seconds (#105). That\n    case comes back empty with a \"note\" saying so and what to do instead.\n\n    A misspelled name that matches no division literally (\"Berekley\", or\n    \"Berekley, CA\" — the region suffix is set aside first) gets one\n    close-spelling retry over the local divisions table (#215); those\n    results rank below any literal match, carry \"matched_by\": \"fuzzy\", and\n    come with a \"note\" naming the spelling they were corrected to.\n\n    A query that is entirely a postcode (\"94110\", \"1011AB\") is answered as\n    one (#223): one result per country whose address points carry that code,\n    with \"type\": \"postcode\", \"country\", \"address_count\" and a null \"id\" (a\n    postcode is not a GERS entity). Codes are shared across countries far\n    more often than not, so the alternates below the top row are real\n    ambiguity. The accompanying \"note\" carries the granularity caveat (a\n    Dutch code is a street block, a US ZIP a district) and the coverage\n    limits -- including the countries the addresses theme covers but that\n    carry no postcode values at all, which is why a valid postcode can still\n    come back empty.\n\n    Exonyms work too (#214): names are matched against Overture's ~100\n    localized alternates as well as its canonical one, so \"Munich\" answers\n    München and \"Tokyo\" answers 東京都. `name` is always the canonical\n    spelling; such rows carry an extra \"matched_name\" naming the alternate\n    that matched.\n\n    lang (#410) requests Overture's language-tagged name variant instead\n    of a division row's primary name, when the data has one for that row\n    and language: `name` becomes the variant and `name_primary` is added\n    only when it differs. Default: the stored `preferences()` lang, else\n    the primary name unchanged. Never invented or transliterated — only a\n    variant actually present in Overture's data is ever returned.\n    `PLACEROOT_HOME=<city/area>` (#406) sets a home region once at startup;\n    a bounded score bonus then nudges same-tier ambiguous namesakes (the\n    \"which Springfield\" case) toward it — a bias, never a filter, so a\n    distant result stays in the answer, just not first. Only when the bias\n    actually changed the top result does a \"note\" say so, e.g. \"ranked\n    toward your configured home region (Seattle); pass a city/near hint to\n    override\". No home configured -> no bias, no note, behavior unchanged.\n    ",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "limit": {
+            "default": 5,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "lang": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Result-language code (2-3 lowercase letters, e.g. \"de\"). Overture-tagged name variants only — never transliterated or invented. Default: stored preference, else the primary name.",
+            "title": "Lang"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Country"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "geocodeArguments"
+      },
+      "outputSchema": {
+        "type": "object",
+        "anyOf": [
+          {
+            "type": "object",
+            "required": [
+              "results"
+            ],
+            "properties": {
+              "results": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    },
+                    "lat": {
+                      "type": "number"
+                    },
+                    "lon": {
+                      "type": "number"
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "admin_context": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "rank_score": {
+                      "type": "number"
+                    },
+                    "matched_by": {
+                      "type": "string"
+                    },
+                    "matched_name": {
+                      "type": "string"
+                    },
+                    "country": {
+                      "type": "string"
+                    },
+                    "address_count": {
+                      "type": "integer"
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              },
+              "note": {
+                "type": "string"
+              },
+              "truncated": {
+                "type": "boolean"
+              },
+              "omitted_count": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": true
+          },
+          {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "string"
+              },
+              "detail": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          }
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "search_categories",
+      "title": "Search categories",
+      "description": "Free text -> valid Overture category slugs, for the `category` param\n    the place-search and area-summary tools take.\n\n    Lookup only — no geo filtering, no upstream dataset dependency; matches\n    against a bundled snapshot of Overture's places taxonomy (pinned to\n    schema v1.9.0). Ranks exact slug match > slug prefix > slug substring >\n    a match on any taxonomy path segment, so close siblings like \"cafe\" vs\n    \"coffee_shop\" both surface rather than one silently winning. If the\n    whole query matches nothing, falls back to a lexical phrase-intent\n    match against a curated synonym lexicon (e.g. \"fix my cracked phone\n    screen\" -> mobile_phone_repair). Returns {\"results\": [{\"slug\", \"path\",\n    \"confidence\"}, ...]} — path is the root-to-leaf taxonomy (e.g.\n    [\"eat_and_drink\", \"cafe\", \"coffee_shop\"]), confidence is 0-1 and\n    descending, budgeted like every other tool. An empty/whitespace query\n    returns {\"results\": []}. limit is clamped to 0-50, matching every\n    other tool's limit handling (out-of-range values are not an error).\n    ",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "limit": {
+            "default": 8,
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "search_categoriesArguments"
+      },
+      "outputSchema": {
+        "type": "object",
+        "anyOf": [
+          {
+            "type": "object",
+            "additionalProperties": true
+          },
+          {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "string"
+              },
+              "detail": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          }
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "preferences",
+      "title": "Persistent preferences",
+      "description": "Travel defaults.\n\n    State \"I bike everywhere, I have a dog\" once. Routing tools use the\n    stored mode when you omit theirs; an explicit argument always wins.\n    pace and household are stored for later features and do not change\n    answers yet. lang (#410) is the stored result-language preference: the\n    name-lookup tools that accept their own `lang` use this one when\n    theirs is omitted, returning an Overture-tagged name variant (e.g.\n    \"Munich\" for \"München\" with lang=\"en\") — a per-call `lang` always\n    wins. The same document is the placeroot://preferences resource.\n\n    Call with no arguments to read. Pass mode, pace, household tags, a\n    free-text note, or lang to merge those fields.\n    clear=true deletes the file and cannot be combined with other fields.\n    Nothing is sent off this machine. Over HTTP, preferences are\n    per-connection and not persisted (this session's values overlay the\n    host's file and are gone when the session ends).\n    ",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Travel mode to store. Omit to leave it unchanged.",
+            "enum": [
+              "cycle",
+              "drive",
+              "walk"
+            ],
+            "title": "Mode"
+          },
+          "pace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Pace"
+          },
+          "household": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Household"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Note"
+          },
+          "lang": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Result-language code (2-3 lowercase letters, e.g. \"de\"). Overture-tagged name variants only — never transliterated or invented. Default: stored preference, else the primary name.",
+            "title": "Lang"
+          },
+          "clear": {
+            "default": false,
+            "title": "Clear",
+            "type": "boolean"
+          }
+        },
+        "title": "preferencesArguments"
+      },
+      "outputSchema": {
+        "type": "object",
+        "anyOf": [
+          {
+            "type": "object",
+            "additionalProperties": true
+          },
+          {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "string"
+              },
+              "detail": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          }
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "data_version",
+      "title": "Data version",
+      "description": "Which Overture Maps release backs the answers from every other tool.\n\n    Reports the active release string, its date, and whether it came from\n    live S3 discovery, an operator env override, or the pinned fallback\n    baked into this build. Resolved once at process start and cached for\n    the process lifetime — this tool just reports that cached value, it\n    doesn't re-check upstream, so it's small and has no upstream DB\n    dependency.\n\n    The body is resources.data_version_payload(), shared verbatim with the\n    placeroot://data-version MCP resource so the two surfaces cannot drift\n    (issue #195); tests/test_resources.py asserts they stay equal.\n    ",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "title": "data_versionArguments"
+      },
+      "outputSchema": {
+        "type": "object",
+        "anyOf": [
+          {
+            "type": "object",
+            "required": [
+              "release",
+              "release_date",
+              "source"
+            ],
+            "properties": {
+              "release": {
+                "type": "string"
+              },
+              "release_date": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "age_days": {
+                "type": "number"
+              },
+              "note": {
+                "type": "string"
+              },
+              "artifacts": {
+                "type": "string"
+              },
+              "recreation_layer": {
+                "type": "object"
+              }
+            },
+            "additionalProperties": true
+          },
+          {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "string"
+              },
+              "detail": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          }
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    }
+  ]
+}

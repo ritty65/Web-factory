@@ -1,0 +1,28 @@
+[Unit]
+Description=Factory isolated guarded Camofox source reader
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=simple
+User=webfactory-reader
+Group=webfactory-reader
+WorkingDirectory=/opt/webfactory
+EnvironmentFile=/etc/webfactory/reader.env
+Environment=HOME=/var/lib/webfactory-reader
+Environment=XDG_CACHE_HOME=/var/lib/webfactory-reader/cache
+ExecStart=/usr/bin/env node /opt/webfactory/scripts/camofox-source.mjs
+Restart=on-failure
+RestartSec=10
+KillMode=control-group
+MemoryMax=2G
+TasksMax=128
+CPUQuota=100%
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/webfactory-reader
+# No app state, provider keys, cookies or customer files are accessible to this user.
+[Install]
+WantedBy=multi-user.target

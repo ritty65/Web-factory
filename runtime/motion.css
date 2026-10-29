@@ -1,0 +1,11 @@
+/* Own the business-specific styling elsewhere. These are only reusable mechanics. */
+[data-tactile] { transition: transform 160ms cubic-bezier(.16,1,.3,1); }
+[data-tactile]:active { transform: scale(.97); }
+@media (hover:hover) and (pointer:fine) {
+  [data-tactile]:hover { transform: translateY(-2px); }
+  [data-tactile]:active { transform: scale(.97); }
+}
+@media (prefers-reduced-motion:reduce) {
+  [data-tactile] { transition: none; }
+  [data-tactile]:active, [data-tactile]:hover, [data-scroll-depth] { transform: none !important; }
+}

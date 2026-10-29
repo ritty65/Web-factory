@@ -1,0 +1,9 @@
+const date=()=>new Date().toISOString().slice(0,10);
+export function leadEvidence(name='Fictional Oakline Detailing',phone='+17135550101'){
+ const text=`${name} serves Houston, Texas. Interior cleaning. Exterior care. Complete detailing. Published work on ${date()}. Call ${phone}.`;
+ const observations=['https://www.facebook.com/fixture','https://www.yelp.com/biz/fixture'].map((url,i)=>({id:'observation-fixture-'+i,url,finalUrl:url,title:name,text,links:[],images:[{url:'https://example.com/work.jpg',alt:'Business work',width:600,height:400}],contacts:['tel:'+phone],dates:[{value:date(),text:'Published work'}],structured:[],blocked:false,truncated:false,inspectedAt:new Date().toISOString(),expiresAt:new Date(Date.now()+30*86400000).toISOString()}));
+ const p=(text,id=observations[0].id)=>({observationId:id,text,excerpt:text});
+ const extraction={identity:p(name),location:p('Houston, Texas'),services:['Interior cleaning','Exterior care','Complete detailing'].map(s=>p(s)),contact:{kind:'phone',value:phone,observationId:observations[1].id,excerpt:text},activity:{...p('Published work on '+date(),observations[1].id),date:date(),dateText:date()},independentWebsite:null,media:[{observationId:observations[0].id,imageIndex:0,businessPostedExcerpt:name+' serves Houston, Texas',alt:'Publicly observed fictional business work'}],unknowns:[]};
+ const pointer={id:'prospect-fixture',placeId:'fictional-place',cohortId:'cohort-fixture',data:{name,phone,area:'Houston, Texas',website:'',operatingStatus:'OPERATIONAL'},expiresAt:new Date(Date.now()+86400000).toISOString()};
+ const searches=[0,1].map(i=>({query:'"'+name+'" website '+i,at:new Date().toISOString(),identityClue:true,items:observations.map(o=>({url:o.url,title:name,description:'Houston detailing'}))}));return {pointer,observations,searches,extraction};
+}
