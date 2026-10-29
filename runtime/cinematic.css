@@ -1,0 +1,21 @@
+/* Mechanics only. Typography, imagery and composition belong to each design. */
+[data-effect="split-chars"] [data-cinematic-word] { display:inline-block; white-space:nowrap; }
+[data-effect="split-chars"] [data-cinematic-char] { display:inline-block; }
+[data-effect="distortion"] { position:relative; }
+[data-effect="distortion"] > img { display:block; width:100%; height:auto; }
+[data-cinematic-distortion] { position:absolute; pointer-events:none; inset:0; width:100%; height:100%; opacity:0; }
+[data-cinematic-trail] { position:fixed; pointer-events:none; width:min(26vw,300px); height:auto; max-height:260px; object-fit:cover; z-index:12; border-radius:inherit; }
+[data-scene-layer] { transform-origin:center; }
+.factory-inner-nav { display:flex; flex-wrap:wrap; gap:16px; padding:24px max(20px,4vw); font:inherit; }
+.factory-inner-nav a { color:inherit; min-height:44px; display:inline-flex; align-items:center; }
+html.lenis, html.lenis body { height:auto; }
+.lenis:not(.lenis-autoToggle).lenis-stopped { overflow:clip; }
+.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior:contain; }
+@media (prefers-reduced-motion:reduce), (pointer:coarse), (max-width:767px) {
+  [data-cinematic-trail], [data-cinematic-distortion] { display:none!important; }
+  [data-scene-layer] { transform:none!important; opacity:1!important; }
+}
+@media (prefers-reduced-motion:reduce) {
+  [data-cinematic-char] { transform:none!important; opacity:1!important; }
+  ::view-transition-old(root), ::view-transition-new(root) { animation:none!important; }
+}

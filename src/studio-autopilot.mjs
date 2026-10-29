@@ -7,6 +7,8 @@ import {studioHttp} from './studio-http.mjs';
 import {discoverPointers,refreshPointer,investigatePointer,retainResearchMedia,purgeExpiredStudioData,testReaders} from './studio-leads.mjs';
 import {websiteSurface} from './lead-screening.mjs';
 import {PREMIUM_PROFILE} from './effects-contract.mjs';
+import {CINEMATIC_PROFILE} from './site-profile.mjs';
+import {selectReferenceBindings} from './design-references.mjs';
 
 const key=z.string().regex(/^[a-z0-9][a-z0-9-]{7,95}$/);
 const op=(description,schema,readOnly=false)=>({description,schema,readOnly});
@@ -24,6 +26,7 @@ const chicagoDate=date=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chica
 export async function studioReadiness(store,{allowFixture=false}={}){
   const setup=await studioStatus(store),blockers=[],current=settingsDigest(store);
   if(!settingsRecord(store))blockers.push('Save the private setup first.');
+  if(setup.data.designProfile===CINEMATIC_PROFILE){try{selectReferenceBindings(store);}catch(e){blockers.push(e.message);}}
   for(const task of ['research','design','code','repair','vision']){
     const name=setup.data.roles[task],c=setup.connections.find(c=>c.id===name),capability=task==='vision'?'vision':task==='research'?'json':'coding';
     if(!c?.configured||!c.priced||c.check?.state!=='passed'||!c.check.capabilities[capability]||Date.now()-Date.parse(c.check.at)>7*86400000||!allowFixture&&c.check.verification!=='live_api')blockers.push('Test a priced '+capability+' connection for '+task+' ('+name+').');
@@ -149,10 +152,11 @@ export function queueConcept(store,pilot,assessment,date){
   return atomic(store,()=>{
     const current=pilotRecord(store);if(!current?.enabled||current.settingsDigest!==pilot.settingsDigest||assessment.state!=='source_checked')fail('AUTOPILOT_BINDING','Only the current enabled source-checked pilot may queue a concept');
     const sites=store.jobs().filter(j=>j.input.apiConcept?.cohortId===pilot.cohortId);if(sites.length>=3||sites.some(j=>j.input.apiConcept.date===date))fail('PILOT_BUILD_CAP','The daily or total proposal allowance is already consumed');
-    const designProfile=PREMIUM_PROFILE;
-    const digest=hash({candidate:assessment.candidate,media:assessment.media,assessmentDigest:hash(assessment),settingsDigest:pilot.settingsDigest,designProfile}),proofId='api-proof-'+hash({assessment:assessment.id,date}).slice(0,24);
-    const job=store.createJob({campaignId:pilot.campaignId,kind:'site',input:{apiConcept:{proofId,digest,cohortId:pilot.cohortId,assessmentId:assessment.id,date},modelSelection:'api/deepseek-first',designProfile}});
-    saveRecord(store,proofId,'studio_concept_proof',{jobId:job.id,campaignId:job.campaignId,candidate:assessment.candidate,media:assessment.media,assessmentId:assessment.id,assessmentDigest:hash(assessment),settingsDigest:pilot.settingsDigest,designProfile,digest,publicRelease:false});
+    const designProfile=settings(store).designProfile||PREMIUM_PROFILE,designReferences=designProfile===CINEMATIC_PROFILE?selectReferenceBindings(store):undefined;
+    const design={designProfile,...(designReferences?{designReferences}:{})};
+    const digest=hash({candidate:assessment.candidate,media:assessment.media,assessmentDigest:hash(assessment),settingsDigest:pilot.settingsDigest,...design}),proofId='api-proof-'+hash({assessment:assessment.id,date}).slice(0,24);
+    const job=store.createJob({campaignId:pilot.campaignId,kind:'site',input:{apiConcept:{proofId,digest,cohortId:pilot.cohortId,assessmentId:assessment.id,date},modelSelection:'api/deepseek-first',...design}});
+    saveRecord(store,proofId,'studio_concept_proof',{jobId:job.id,campaignId:job.campaignId,candidate:assessment.candidate,media:assessment.media,assessmentId:assessment.id,assessmentDigest:hash(assessment),settingsDigest:pilot.settingsDigest,...design,digest,publicRelease:false});
     return {queued:true,jobId:job.id};
   });
 }

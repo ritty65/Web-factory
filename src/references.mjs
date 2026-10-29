@@ -1,6 +1,8 @@
 import { inspectSource } from './browser.mjs';
 import { now } from './contracts.mjs';
+import {DESIGN_REFERENCE_SEEDS,auditDesignReference} from './design-references.mjs';
 export const REFERENCE_SEEDS = [
+  ...DESIGN_REFERENCE_SEEDS,
   { id: 'digma', name: 'DIGMA', url: 'https://grupodigma.com/', principles: 'Bold typographic scale, substantial image-led sections and clear service hierarchy. Borrow craft, not the same composition.' },
   { id: 'shroomtopia', name: 'Shroomtopia', url: 'https://shroomtopia.shop/', principles: 'Subject-specific retail identity and contrasting product atmosphere. Earlier inspected logo image was broken; do not copy that defect or unverified product claims.' },
   { id: 'agency', name: 'Simulacra Productions', url: 'https://simulacraproductions.net/', principles: 'The operator’s own agency identity and private-preview offer; not an automatic design for every business.' },
@@ -12,6 +14,7 @@ export const REFERENCE_SEEDS = [
 ];
 export function seedReferences(store) { for (const seed of REFERENCE_SEEDS) if (!store.references().some(v => v.id === seed.id)) store.saveReference({ ...seed, status: 'awaiting_fresh_capture', observation: 'Earlier conversation inspection; fresh evidence has not yet been imported into Factory', captures: [] }); }
 export async function auditReference(referenceId, { jobRoot, signal } = {}) {
+  if(DESIGN_REFERENCE_SEEDS.some(r=>r.id===referenceId))return auditDesignReference(referenceId,{jobRoot,signal});
   const seed = REFERENCE_SEEDS.find(v => v.id === referenceId);
   if (!seed) throw new Error('Reference not selected by operator');
   const observation = await inspectSource(seed.url, { directory: jobRoot + '/sources', signal, capture: true });

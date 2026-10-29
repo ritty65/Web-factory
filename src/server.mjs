@@ -93,7 +93,7 @@ export async function startServer(service, { port = 8780, previewPort = 8781 } =
       const root = path.join(service.store.stateRoot, safeRelative(boundRoot));
       const target = path.join(root, relative); await noLinks(target);
       const info = await stat(target); if (!info.isFile() || info.size > 2 * 1024 * 1024 || !MIME[path.extname(relative)]) fail('NOT_FOUND', 'Not a served static file');
-      if (req.headers.origin === 'null' && ['font', 'script'].includes(req.headers['sec-fetch-dest'])) res.setHeader('access-control-allow-origin', 'null');
+      if (req.headers.origin === 'null' && ['font', 'script', 'image'].includes(req.headers['sec-fetch-dest'])) res.setHeader('access-control-allow-origin', 'null');
       res.setHeader('content-type', MIME[path.extname(relative)]); res.end(req.method === 'HEAD' ? undefined : await readFile(target));
     } catch (e) { sendError(res, e); }
   });

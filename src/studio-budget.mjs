@@ -1,5 +1,6 @@
 import {hash,now,fail} from './contracts.mjs';
 import {record,records,saveRecord,atomic} from './studio-state.mjs';
+import {CINEMATIC_PROFILE} from './site-profile.mjs';
 
 const LIMIT=100_000_000; // integer micro-USD; the agreed first-pilot ceiling is $100.
 export function studioSpend(store){
@@ -34,7 +35,8 @@ export function reserveCall(store,{requestId,provider,input,purpose,upperMicros,
     if(balance.committedMicros>balance.limitMicros||attempts.some(c=>c.chargedMicros>c.reservedMicros))fail('PRICE_CEILING_EXCEEDED','Inspect the exceeded cost ceiling before further work');
     if(balance.uncertain.length)fail('SPEND_UNCERTAIN','An earlier request is incomplete. Resolve its exact receipt before further paid work');
     if(balance.remainingMicros<upperMicros)fail('PILOT_BUDGET','Remaining pilot allowance does not cover this request');
-    if(jobId&&purpose.startsWith('ai:')&&records(store,'studio_spend').filter(c=>c.jobId===jobId&&c.purpose.startsWith('ai:')).length>=10)fail('MODEL_CALL_CAP','Ten model attempts already exist for this proposal, including failures');
+    const modelCap=jobId&&store.job(jobId).input.designProfile===CINEMATIC_PROFILE?16:10;
+    if(jobId&&purpose.startsWith('ai:')&&records(store,'studio_spend').filter(c=>c.jobId===jobId&&c.purpose.startsWith('ai:')).length>=modelCap)fail('MODEL_CALL_CAP',modelCap+' model attempts already exist for this proposal, including failures');
     return saveRecord(store,id,'studio_spend',{id,inputDigest,provider,purpose,jobId,reservedMicros:upperMicros,chargedMicros:null,state:'requesting',startedAt:now()});
   });
 }

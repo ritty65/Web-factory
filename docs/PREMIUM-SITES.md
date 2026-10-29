@@ -1,6 +1,6 @@
 # Premium sites: try the effects, then test a real build
 
-New API builds use `premium-practical-v1`. DeepSeek still plans and codes the site; a separate vision provider reviews actual screenshots. No frontend framework, CDN or additional animation-service key is required.
+This documents the earlier `premium-practical-v1` profile. Its demos were rejected as the creative benchmark and remain engineering examples. Choose the new [cinematic director profile](CINEMATIC-DIRECTOR.md) for inspected references, homepage-first development and advanced effects. DeepSeek remains the default code provider; no frontend framework, CDN or animation-service key is required.
 
 ## Try it without keys
 
@@ -55,7 +55,7 @@ Inspect the first real result on desktop and phone. Check its facts, media right
 
 It includes working client-side galleries, disclosures, filters, responsive layouts and progressive effects. Real form delivery, booking engines, accounts and payments need working backend integrations. There is no fake submission or booking success.
 
-WebGL distortion, cursor trails, water simulations, Lenis and horizontal scroll hijacking are deferred. This first pack keeps natural scrolling and the existing 2 MiB total / 50 KiB JavaScript / 50 KiB CSS limits.
+The basic profile keeps natural scrolling and its 2 MiB total / 50 KiB JavaScript / 50 KiB CSS limits. The separate cinematic profile now includes bounded image trails, hover displacement, character reveals, GSAP scroll scenes and optional Lenis. Water simulations and horizontal scroll hijacking remain outside this implementation.
 
 ## Reproduce the offline proof
 

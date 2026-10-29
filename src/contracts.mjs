@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { isIP } from 'node:net';
 import path from 'node:path';
+import {siteBudget} from './site-profile.mjs';
 
 export class FactoryError extends Error {
   constructor(code, message, details = {}) { super(message); this.code = code; this.details = details; }
@@ -146,13 +147,13 @@ export function candidateInput(input) {
 }
 export const candidateKey = data => `lead-${hash({ name: data.name.toLowerCase(), area: data.area.toLowerCase(), social: data.contacts.instagram || data.contacts.facebook || null }).slice(0, 20)}`;
 export const SITE_EXTENSIONS = new Set(['.html', '.css', '.js', '.json', '.svg', '.webp', '.jpg', '.jpeg', '.png', '.ttf', '.woff2', '.txt', '.ico']);
-export function validateProposal(input, { pageCount = 5 } = {}) {
+export function validateProposal(input, { pageCount = 5, designProfile = null } = {}) {
   if (![1, 5].includes(pageCount)) fail('INVALID_PROPOSAL', 'Only host-owned one-page studies or five-page proposals are supported');
   if (!input || !Array.isArray(input.files) || input.files.length < pageCount || input.files.length > 35) fail('INVALID_PROPOSAL', 'A proposal needs complete useful HTML pages and bounded static files');
   const names = new Set(); let total = 0, js = 0, css = 0;
   const files = input.files.map(file => {
     const name = safeRelative(file.path);
-    if (/^assets\/(?:factory-(?:motion|effects)\.(?:js|css)|fonts\/)/.test(name)) fail('RESERVED_ASSET', 'Reserved host runtime/font assets cannot be replaced by model output');
+    if (/^assets\/(?:factory-(?:motion|effects|cinematic|gsap|scrolltrigger|lenis)\.(?:js|css)|(?:GSAP|LENIS)-LICENSE\.txt|fonts\/)/.test(name)) fail('RESERVED_ASSET', 'Reserved host runtime/font assets cannot be replaced by model output');
     if (!['.html', '.css', '.js', '.svg', '.txt'].includes(path.posix.extname(name)) || names.has(name.toLowerCase())) fail('INVALID_PROPOSAL', 'Duplicate or unsupported model file');
     names.add(name.toLowerCase());
     const content = text(file.content, 'Static file', 240000);
@@ -162,7 +163,8 @@ export function validateProposal(input, { pageCount = 5 } = {}) {
     if (/\b(?:src|poster)\s*=\s*["'](?:https?:)?\/\/|@import\s*|url\(\s*["']?(?:https?:)?\/\/|<base\b|<meta[^>]+http-equiv\s*=/i.test(content)) fail('REMOTE_RUNTIME', 'Remote runtime resources/base/meta refresh are not allowed in proposals');
     return { path: name, content };
   });
-  if (!names.has('index.html') || files.filter(f => f.path.endsWith('.html')).length !== pageCount || total > 2 * 1024 * 1024 || js > 50 * 1024 || css > 50 * 1024) fail('PROPOSAL_BUDGET', 'Proposal page/file budgets exceeded');
+  const budget=siteBudget(designProfile);
+  if (!names.has('index.html') || files.filter(f => f.path.endsWith('.html')).length !== pageCount || total > budget.total || js > budget.js || css > budget.css) fail('PROPOSAL_BUDGET', 'Proposal page/file budgets exceeded');
   const design = input.design || {};
   if (typeof design.thesis !== 'string' || !Array.isArray(design.comparisons) || design.comparisons.length < 3) fail('DESIGN_REQUIRED', 'A specific design thesis and three non-color comparisons are required');
   return { files, design: { thesis: text(design.thesis, 'Visual thesis', 2500), comparisons: design.comparisons.slice(0, 6).map(v => text(v, 'Design comparison', 1000)), interaction: typeof design.interaction === 'string' ? text(design.interaction, 'Interaction plan', 2500) : 'Inspect actual page controls and motion before acceptance.' } };

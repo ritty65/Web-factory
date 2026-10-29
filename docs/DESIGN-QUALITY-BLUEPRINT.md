@@ -1,6 +1,6 @@
 # Design quality: the next benchmark
 
-Status: proposal grounded in a code review and the operator's rejection of the current demos. This document does not implement or certify the next generator. The existing effect runtime and its technical checks remain in place.
+Status: the reference packet, homepage gate, readable review, advanced runtime and profile-specific limits are implemented in `cinematic-director-v2`. [The implementation guide](CINEMATIC-DIRECTOR.md) describes the executable flow; [validation](CINEMATIC-VALIDATION.md) distinguishes actual browser checks, fictional AI integration tests and the blocked live AI run. This blueprint also retains longer-term work that is not implemented, including video, page morphs and a human-calibrated benchmark.
 
 ## The goal
 
@@ -10,7 +10,7 @@ The current demos are rejected as the creative benchmark. Their repeated abstrac
 
 ## The chosen references
 
-The operator supplied these five references and wants their desktop craft studied. These are the requested directions for inspection, not verified observations of the live sites or their current dependencies:
+The operator supplied these five references and wants their desktop craft studied. These are directions for inspection, not verified dependency or award claims:
 
 | Reference | What to study and adapt |
 | --- | --- |
@@ -22,9 +22,11 @@ The operator supplied these five references and wants their desktop craft studie
 
 Use Obys and Exo Ape as the primary direction for composition and interaction. Treat Lusion/Bruno-style scenes as optional specialist work for appropriate brands, assets and budgets. Give phones, keyboards and reduced-motion users an independently useful experience.
 
-Live inspection is currently blocked by this cloud instance's enforced network allowlist. The five hosts are not allowed. Their stack descriptions and award claims have not been verified. Do not record a fresh reference audit until a real desktop browser visit succeeds.
+This environment now permits public browsing. Fresh Chromium inspections produced content-ready captures of Exo Ape, Locomotive and Lusion. Obys and Bruno Simon remained on loading screens and are held as visually unresolved; their nonempty pixels cannot qualify as usable reference evidence. Exo Ape required one retry after a navigation failure. Captures stay private and expire after 30 days. These observations do not verify the supplied stack descriptions or award claims.
 
-## Why the current approach falls short
+## Gaps that prompted the change
+
+These observations describe the earlier basic process. The cinematic profile addresses reference delivery, review readability, homepage expansion and the capability budget. Its actual design quality still needs live-model output and human calibration.
 
 1. **The API generator receives no inspected reference packet.** Its shared input currently sets `references: []`. The reference shelf exists, but those observations and screenshots do not reach this build path.
 2. **The reviewer receives overly small long-page images.** Review attachments are resized to a maximum 1,024-pixel edge. One actual 1,440 × 3,095 demo capture becomes approximately 476 × 1,024; a 390 × 2,207 phone capture becomes approximately 181 × 1,024. Composition is visible, but small type and detail are hard to assess.

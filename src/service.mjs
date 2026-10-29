@@ -72,7 +72,7 @@ export const OPERATIONS = {
   build_site: operation('Queue an isolated private static PROPOSAL for a qualified candidate. Uses source-backed imagery and bounded QA; never accepts or publishes.', z.object({ candidateId: key }).strict(), false),
   job_cancel: operation('Cancel one queued/running job and its owned worker work. Does not delete artifacts or history.', keyed, false),
   job_retry: operation('Queue a bounded retry of one blocked/failed/cancelled job, preserving prior attempts.', keyed, false),
-  reference_audit: operation('Queue a guest-browser inspection of one of the operator-selected reference sites. No arbitrary host commands.', z.object({ referenceId: key }).strict(), false),
+  reference_audit: operation('Queue a guest-browser inspection of an operator-selected reference. A fresh requestId requests a new audit; retries are idempotent.', z.object({ referenceId: key, requestId: key.optional() }).strict(), false),
   vault_check: operation('Queue a read-only live Vault availability/authentication check. No credential search or login and no upload/publication.', empty, false),
   vault_import: operation('Import a sanitized operator-provided preview list; records retain imported status and cannot claim authenticated live synchronization.', z.object({ previews: z.array(z.object({ slug: z.string().regex(/^[a-z0-9][a-z0-9-]{1,79}$/), name: z.string().min(1).max(150), url: z.string().url().max(300), status: z.enum(['draft', 'published', 'unknown']).default('unknown') }).strict()).max(100) }).strict(), false),
 };

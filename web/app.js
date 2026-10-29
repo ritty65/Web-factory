@@ -255,7 +255,7 @@ function renderReviewWorkspace(record,{simple=false}={}) {
     p('Desktop and Phone below show recorded QA screenshots. Open the interactive website to try its navigation and controls.','muted'),node('details',{},node('summary',{},'Version & check details'),exact,link('Technical work record','#jobs/'+job.id,'action-link')));
   else root.append(...exact.filter(Boolean));
   if(job.outputs.effectsPlan){
-    const labels={'magnetic':'Magnetic buttons','sticky-stack':'Sticky service cards','split-text':'Split-text reveals','clip-reveal':'Image/section reveals','drag-gallery':'Draggable gallery'};
+    const labels={'magnetic':'Magnetic buttons','sticky-stack':'Sticky service cards','split-text':'Split-text reveals','clip-reveal':'Image/section reveals','drag-gallery':'Draggable gallery','split-chars':'Character typography','image-trail':'Project image trails','distortion':'Responsive image distortion','scroll-scene':'Layered scroll scene'};
     const plan=job.outputs.effectsPlan,checks=job.outputs.effectsChecks||[],passed=checks.filter(c=>c.pass).length;
     const shelf=node('details',{class:'block'},node('summary',{},'Effects & browser checks'),p(job.outputs.effectsVerification==='local_browser_checked'?`${passed}/${checks.length} page/viewport effect checks passed in local Chromium.`:'Effect checks are pending or held.','meta'),p(job.outputs.modelVerification==='live_api'?'Model calls used the live provider transport. Your design verdict is still required.':'Model verification is injected or unverified. This is not proof of live AI quality.','meta'),node('ul',{class:'facts'},plan.effects.map(e=>node('li',{},node('strong',{},labels[e.type]||e.type),' · '+e.page,p(e.purpose),p('Fallback: '+e.fallback,'meta')))),p('Three to five distinct families. Phone, touch and reduced-motion behavior may be simpler. Real booking, forms and payment systems need separate integrations.','meta'));
     const effectCaptures=record.artifacts.filter(a=>a.kind==='site_capture'&&a.relative.startsWith(job.outputs.qaRelative+'/')&&/-effect-/.test(a.relative));
@@ -263,6 +263,7 @@ function renderReviewWorkspace(record,{simple=false}={}) {
     const failed=checks.flatMap(c=>c.checks.filter(v=>!v.pass).map(v=>c.file+' '+c.viewport[0]+'px: '+v.name));if(failed.length)shelf.append(node('ul',{},failed.map(f=>node('li',{},f))));
     root.append(shelf);
   }
+  if(job.outputs.creativeIntent)root.append(node('details',{class:'block'},node('summary',{},'Design direction & reference evidence'),node('dl',{},Object.entries(job.outputs.creativeIntent).flatMap(([k,v])=>[node('dt',{},k.replace(/([A-Z])/g,' $1')),node('dd',{},v)])),p('Reference packet: '+job.outputs.referenceDigest,'meta'),p(job.outputs.designEvidence?'Homepage and full-page AI comparisons are retained. Your exact-version verdict is still required.':'Creative review is pending or held.','meta')));
   const device=width=>{state.reviewDevice=width;render();document.querySelector('#review-workspace .review-controls [aria-pressed=true]')?.focus({preventScroll:true});};
   const desktop=button('Desktop', () => device(1440), state.reviewDevice === 1440 ? 'primary small' : 'secondary small'),phone=button('Phone', () => device(390), state.reviewDevice === 390 ? 'primary small' : 'secondary small');
   desktop.setAttribute('aria-pressed',String(state.reviewDevice===1440));phone.setAttribute('aria-pressed',String(state.reviewDevice===390));
@@ -354,7 +355,7 @@ function renderReferences() {
   for (const r of state.data.references) {
     const capture = r.captures.find(c => c.viewport?.[0] === 1440)?.artifact;
     const image = node('div', { class: 'reference-image' }, capture ? node('img', { src: `/files/${capture.id}`, alt: `${r.name} · actual desktop reference capture`, loading: 'lazy' }) : node('div', { class: 'placeholder' }, r.name, node('br'), 'Awaiting capture.'));
-    grid.append(node('article', { class: 'reference-entry' }, image, node('div', { class: 'reference-heading' }, node('h2', {}, r.name), badge(r.status)), p(r.principles), p(stamp(r.inspectedAt), 'meta'), node('div', { class: 'files' }, link('Visit reference ↗', r.url), button('Inspect reference', e => action('reference_audit', { referenceId: r.id }, 'Guest-browser reference audit queued.', e), 'text-button')), r.captures.length ? node('div', { class: 'files' }, r.captures.filter(c => c.artifact).map(c => fileLink(c.artifact, `${c.viewport[0]}px capture ↓`))) : null));
+    grid.append(node('article', { class: 'reference-entry' }, image, node('div', { class: 'reference-heading' }, node('h2', {}, r.name), badge(r.status)), p(r.principles), p(stamp(r.inspectedAt), 'meta'), node('div', { class: 'files' }, link('Visit reference ↗', r.url), button('Inspect reference', e => action('reference_audit', { referenceId: r.id, requestId: crypto.randomUUID() }, 'Guest-browser reference audit queued.', e), 'text-button')), r.captures.length ? node('div', { class: 'files' }, r.captures.filter(c => c.artifact).map(c => fileLink(c.artifact, `${c.viewport[0]}px capture ↓`))) : null));
   } return grid;
 }
 function renderAssets() {

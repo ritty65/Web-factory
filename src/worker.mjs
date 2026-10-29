@@ -91,7 +91,7 @@ async function executeOwnedJob(store, jobId, adapters) {
     const full = path.join(store.stateRoot, relative); await noLinks(full); const bytes = await readFile(full); return store.artifact({ jobId, relative, kind, label, bytes: bytes.length, sha256: hash(bytes) });
   }
   try {
-    if(settingsRecord(store)&&!current.input.studioAutopilot&&!current.input.apiConcept&&!current.input.modelSelection?.startsWith('api/'))fail('STUDIO_METERED_WORKFLOW','Legacy external work is held while this workspace uses the shared API profile and allowance');
+    if(settingsRecord(store)&&current.kind!=='reference'&&!current.input.studioAutopilot&&!current.input.apiConcept&&!current.input.modelSelection?.startsWith('api/'))fail('STUDIO_METERED_WORKFLOW','Legacy external work is held while this workspace uses the shared API profile and allowance');
     if (['site', 'qa'].includes(current.kind)) {
       const policy = await policyIdentity(current.kind === 'site' ? 'production' : 'qa');
       dependency = hash({ dependency, policy: await continuationPolicy(store, current, batch, policy) });

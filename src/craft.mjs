@@ -6,17 +6,19 @@ import { noLinks } from './db.mjs';
 import { stageProposal, treeHashes } from './proposal.mjs';
 import { staticAudit, staticPreview } from './qa.mjs';
 import { settleImages, sweepPage } from './qa-motion.mjs';
+import {CINEMATIC_PROFILE,CINEMATIC_HOST_ASSETS,SITE_PROFILES} from './site-profile.mjs';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 
 export async function stageRuntime(root, {designProfile = null} = {}) {
-  if(designProfile!==null&&designProfile!=='premium-practical-v1')fail('DESIGN_PROFILE','Unknown runtime design profile');
+  if(designProfile!==null&&!SITE_PROFILES.includes(designProfile))fail('DESIGN_PROFILE','Unknown runtime design profile');
   const files = [
     ['assets/factory-motion.js', '../runtime/motion.js'], ['assets/factory-motion.css', '../runtime/motion.css'],
     ['assets/fonts/BowlbyOneSC-Regular.ttf', '../runtime/fonts/BowlbyOneSC-Regular.ttf'], ['assets/fonts/OFL-Bowlby.txt', '../runtime/fonts/OFL.txt'],
     ['assets/fonts/DMSans-Variable.ttf', '../web/assets/DMSans-Variable.ttf'], ['assets/fonts/OFL-DMSans.txt', '../web/assets/OFL-DMSans.txt'],
   ];
-  if (designProfile === 'premium-practical-v1') files.push(['assets/factory-effects.js', '../runtime/effects.js'], ['assets/factory-effects.css', '../runtime/effects.css']);
+  if (SITE_PROFILES.includes(designProfile)) files.push(['assets/factory-effects.js', '../runtime/effects.js'], ['assets/factory-effects.css', '../runtime/effects.css']);
+  if(designProfile===CINEMATIC_PROFILE)files.push(...CINEMATIC_HOST_ASSETS);
   for (const [name, source] of files) {
     const target = path.join(root, name); await noLinks(target); await mkdir(path.dirname(target), { recursive: true, mode: 0o750 });
     const bytes = await readFile(new URL(source, import.meta.url));
@@ -24,9 +26,9 @@ export async function stageRuntime(root, {designProfile = null} = {}) {
     catch (e) { if (e.code !== 'EEXIST' || hash(await readFile(target)) !== hash(bytes)) throw e; }
   }
 }
-export function validateStudies(input) {
+export function validateStudies(input, {designProfile=null}={}) {
   if (!Array.isArray(input?.studies) || input.studies.length !== 3) fail('DESIGN_STUDIES', 'Exactly three materially different visual studies are required');
-  const studies = input.studies.map(s => ({ name: text(s.name, 'Study name', 100), ...validateProposal(s, { pageCount: 1 }) }));
+  const studies = input.studies.map(s => ({ name: text(s.name, 'Study name', 100), ...validateProposal(s, { pageCount: 1,designProfile }) }));
   if (new Set(studies.map(s => hash(s.files))).size !== 3) fail('DESIGN_STUDIES', 'Three distinct study file sets are required; recoloring alone still requires actual visual review');
   return studies;
 }
@@ -60,12 +62,12 @@ export async function readDirectionSeed({ store, job, selectionDigest, candidate
   if (!selection.blockingDefects.length) fail('DIRECTION_REPAIR_INPUT', 'This selection has no recorded blocker to repair');
   return { brief: await saved('brief'), studies: validateStudies({ studies: await saved('directions') }), media: await saved('media'), selection, base };
 }
-export function reviewImages(qa) {
+export function reviewImages(qa,{readable=false}={}) {
   const captures = qa.captures || [], pages = [...new Set(captures.filter(c => c.file?.endsWith('.html')).map(c => c.file))];
   if (pages.length !== 5) fail('DESIGN_COVERAGE', 'Creative review needs coverage of all five actual pages, not only the homepage');
   const result = [];
   for (const file of pages) for (const width of [1440, 390]) {
-    const capture = captures.find(c => c.file === file && c.viewport?.[0] === width && (c.kind === 'full_page' || !c.kind));
+    const capture = captures.find(c => c.file === file && c.viewport?.[0] === width && (readable?c.kind==='first_screen':c.kind === 'full_page' || !c.kind));
     if (!capture) fail('DESIGN_COVERAGE', 'Missing actual desktop/phone coverage for a page'); result.push(capture);
   }
   const signature = qa.signatureContract;
@@ -83,14 +85,14 @@ export function reviewImages(qa) {
   return result;
 }
 export async function renderStudies({ studies, media, candidate, jobRoot, signal, designProfile = null, launchBrowser = () => chromium.launch({ executablePath: process.env.FACTORY_BROWSER_EXECUTABLE, headless: true }) }) {
-  studies = validateStudies({ studies }); const output = { studies: [], captures: [], limitations: 'Opening + supporting-section studies only; not complete five-page QA, human selection or acceptance' };
+  studies = validateStudies({ studies },{designProfile}); const output = { studies: [], captures: [], limitations: 'Opening + supporting-section studies only; not complete five-page QA, human selection or acceptance' };
   for (let index = 0; index < studies.length; index++) {
     if (signal?.aborted) fail('CANCELLED', 'Direction rendering cancelled');
     const relative = `directions/study-${index}/site`, siteRoot = path.join(jobRoot, relative);
     await mkdir(path.join(siteRoot, 'assets/photos'), { recursive: true, mode: 0o750 });
     for (const m of media) await copyFile(path.join(jobRoot, safeRelative(m.web_file)), path.join(siteRoot, safeRelative(m.web_file.replace(/^site\//, ''))));
-    await stageRuntime(siteRoot, {designProfile}); await stageProposal(siteRoot, studies[index], { pageCount: 1 });
-    const audit = await staticAudit(siteRoot, { candidate, media, pageCount: 1 });
+    await stageRuntime(siteRoot, {designProfile}); await stageProposal(siteRoot, studies[index], { pageCount: 1,designProfile });
+    const audit = await staticAudit(siteRoot, { candidate, media, pageCount: 1,designProfile });
     const record = { index, name: studies[index].name, relative, siteDigest: hash(await treeHashes(siteRoot)), pass: audit.pass, issues: [...audit.issues], viewports: [] };
     output.studies.push(record); if (!audit.pass) continue;
     const preview = await staticPreview(siteRoot); let browser;
@@ -106,7 +108,8 @@ export async function renderStudies({ studies, media, candidate, jobRoot, signal
         const metrics = await page.evaluate(() => ({ overflow: document.documentElement.scrollWidth > innerWidth + 1, h1: document.querySelectorAll('h1').length, images: [...document.images].filter(i => !i.naturalWidth).length }));
         const pass = sweep.pass && !errors.length && !metrics.overflow && metrics.h1 === 1 && !metrics.images;
         record.viewports.push({ viewport: [width, height], pass, metrics, errors }); record.pass &&= pass;
-        const capture = `directions/study-${index}-${width}.png`; await page.screenshot({ path: path.join(jobRoot, capture), fullPage: true });
+        await page.evaluate(()=>window.scrollTo(0,0));await page.waitForTimeout(850);
+        const capture = `directions/study-${index}-${width}.png`; await page.screenshot({ path: path.join(jobRoot, capture), fullPage: designProfile!==CINEMATIC_PROFILE });
         output.captures.push({ relative: capture, index, viewport: [width, height], name: studies[index].name }); await ctx.close();
       }
     } catch (error) {

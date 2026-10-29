@@ -11,13 +11,16 @@ import { validateInteraction } from './interaction-contract.mjs';
 import { checkInteraction, checkInteractionFallback } from './qa-interactions.mjs';
 import {PREMIUM_PROFILE, validateEffectsPlan, effectsDigest} from './effects-contract.mjs';
 import {observeEffectFrames, checkEffects, checkEffectsFallback} from './qa-effects.mjs';
+import {CINEMATIC_PROFILE,CINEMATIC_HOST_ASSETS,siteBudget} from './site-profile.mjs';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 const { default: AxeBuilder } = require('@axe-core/playwright');
 export const VIEWPORTS = [[1440, 900], [1280, 720], [768, 1024], [390, 844], [320, 740]];
 
-export async function staticAudit(siteRoot, { candidate, media = [], pageCount = 5 } = {}) {
+export async function staticAudit(siteRoot, { candidate, media = [], pageCount = 5,designProfile=null } = {}) {
   const files = await treeHashes(siteRoot), issues = []; let total = 0, js = 0, css = 0;
+  const trusted=new Set();
+  if(designProfile===CINEMATIC_PROFILE)for(const[name,source]of CINEMATIC_HOST_ASSETS){const expected=hash(await readFile(new URL(source,import.meta.url)));if(files[name]!==expected)issues.push({code:'CINEMATIC_RUNTIME',file:name,detail:'Cinematic assets and licences must match the exact protected host bytes'});else trusted.add(name);}
   const issue = (code, file, detail) => issues.push({ code, file, detail });
   const allowedLinks = new Set([...(candidate?.sourceUrls || []), ...(candidate?.facts || []).map(f => f.sourceUrl), ...media.flatMap(m => [m.post_url, m.account]), ...Object.values(candidate?.contacts || {})].filter(v => typeof v === 'string' && /^https:/.test(v)));
   const checkReference = (value, file, resource = false) => {
@@ -37,21 +40,26 @@ export async function staticAudit(siteRoot, { candidate, media = [], pageCount =
     if (ext === '.js') js += bytes.length; if (ext === '.css') css += bytes.length;
     if (['.html', '.css', '.js', '.svg'].includes(ext)) {
       const content = bytes.toString();
-      if (/<base\b|http-equiv\s*=|<iframe\b|<object\b|<embed\b|<form[^>]+action\s*=\s*["']?(?:https?:|\/\/)|\bon[a-z]+\s*=/i.test(content)) issue('UNSUPPORTED_RUNTIME', file, 'Unsafe/unsupported embedding, handler, base, refresh or remote form');
-      if (/\b(?:fetch\s*\(|XMLHttpRequest|WebSocket|EventSource|sendBeacon\s*\(|serviceWorker|eval\s*\(|new\s+Function\b|import\s*\(|document\.cookie)/.test(content)) issue('UNSUPPORTED_RUNTIME', file, 'Networking, generated code and credential access are not supported');
+      if (!trusted.has(file)&&/<base\b|http-equiv\s*=|<iframe\b|<object\b|<embed\b|<form[^>]+action\s*=\s*["']?(?:https?:|\/\/)|\bon[a-z]+\s*=/i.test(content)) issue('UNSUPPORTED_RUNTIME', file, 'Unsafe/unsupported embedding, handler, base, refresh or remote form');
+      if (!trusted.has(file)&&/\b(?:fetch\s*\(|XMLHttpRequest|WebSocket|EventSource|sendBeacon\s*\(|serviceWorker|eval\s*\(|new\s+Function\b|import\s*\(|document\.cookie)/.test(content)) issue('UNSUPPORTED_RUNTIME', file, 'Networking, generated code and credential access are not supported');
       if (/\b(?:signature|access_token|api_key|client_secret)\s*[=:]/i.test(content) || /\/home\/ai_dev|\/tmp\/opencode/.test(content)) issue('PRIVATE_DATA', file, 'Private staging/path/credential marker must not enter a site');
       if (ext === '.html') {
         if (!/<title[^>]*>[^<]+<\/title>/i.test(content) || !/<meta[^>]+name=["']viewport["']/i.test(content)) issue('DOCUMENT_META', file, 'A title and viewport are required');
         for (const m of content.matchAll(/\b(src|href|poster|action)\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)) checkReference(m[2] ?? m[3], file, m[1].toLowerCase() !== 'href' || /\.(?:css|js|woff2?|ttf)(?:[?#]|$)/i.test(m[2] ?? m[3]));
         for (const m of content.matchAll(/\bsrcset\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)) for (const item of (m[1] ?? m[2]).split(',')) checkReference(item.trim().split(/\s+/)[0], file, true);
       }
-      for (const m of content.matchAll(/url\(\s*["']?([^)'"\s]+)["']?\s*\)/gi)) checkReference(m[1], file, true);
-      if (/@import\b/i.test(content)) issue('CSS_IMPORT', file, 'CSS imports are not supported');
+      // Vendored JS is byte-verified above. A CSS-url regex applied to it reads
+      // Lenis's new URL(e.href) as an image path. Never exempt model files.
+      if(!trusted.has(file)||ext!=='.js'){
+        for (const m of content.matchAll(/url\(\s*["']?([^)'"\s]+)["']?\s*\)/gi)) checkReference(m[1], file, true);
+        if (/@import\b/i.test(content)) issue('CSS_IMPORT', file, 'CSS imports are not supported');
+      }
     }
     if (/\.(webp|jpe?g|png)$/i.test(file) && !media.some(m => m.web_file.replace(/^site\//, '') === file && m.web_sha256 === digest)) issue('UNTRACKED_IMAGE', file, 'Raster imagery must match the intended-use manifest');
   }
   if (Object.keys(files).filter(f => f.endsWith('.html')).length !== pageCount || !files['index.html']) issue('PAGE_COUNT', '', `Exactly ${pageCount} useful page(s) including index.html required`);
-  if (total > 2 * 1024 * 1024 || js > 50 * 1024 || css > 50 * 1024) issue('SITE_BUDGET', '', '2MiB/50KiB JS/50KiB CSS budget exceeded');
+  const budget=siteBudget(designProfile);
+  if (total > budget.total || js > budget.js || css > budget.css) issue('SITE_BUDGET', '', 'The fixed site profile total/JS/CSS budget was exceeded');
   return { pass: issues.length === 0, issues, siteHashes: files, bytes: { total, js, css } };
 }
 export async function staticPreview(siteRoot) {
@@ -73,8 +81,8 @@ export async function staticPreview(siteRoot) {
 // Browser route interception and blocked service workers follow official APIs:
 // https://playwright.dev/docs/api/class-browsercontext#browser-context-route
 // Default Axe rules: https://playwright.dev/docs/accessibility-testing
-export async function checkSite({ siteRoot, outputRoot, candidate, media = [], signal, interaction = null, effectsPlan = null }) {
-  const audit = await staticAudit(siteRoot, { candidate, media });
+export async function checkSite({ siteRoot, outputRoot, candidate, media = [], signal, interaction = null, effectsPlan = null,pageCount=5 }) {
+  const audit = await staticAudit(siteRoot, { candidate, media,pageCount,designProfile:effectsPlan?.profile });
   if(effectsPlan) {
     effectsPlan=validateEffectsPlan(effectsPlan,{candidate,media,pages:Object.keys(audit.siteHashes).filter(f=>f.endsWith('.html'))});
     for(const ext of ['js','css']) {
@@ -85,15 +93,21 @@ export async function checkSite({ siteRoot, outputRoot, candidate, media = [], s
       const html=await readFile(path.join(siteRoot,file),'utf8');
       if(!/<script\b[^>]*\bdefer\b[^>]*\bsrc=["']assets\/factory-effects\.js["'][^>]*>/i.test(html)&&!/<script\b[^>]*\bsrc=["']assets\/factory-effects\.js["'][^>]*\bdefer\b[^>]*>/i.test(html))audit.issues.push({code:'EFFECTS_RUNTIME',file,detail:'Every premium page must load the deferred effect runtime'});
       if(!/<link\b[^>]*\bhref=["']assets\/factory-effects\.css["'][^>]*>/i.test(html))audit.issues.push({code:'EFFECTS_RUNTIME',file,detail:'Every premium page must load the effect stylesheet'});
+      if(effectsPlan.profile===CINEMATIC_PROFILE){
+        const expected=['motion','effects','gsap','scrolltrigger','lenis','cinematic'].map(n=>'assets/factory-'+n+'.js');
+        const loaded=[...html.matchAll(/<script\b[^>]*>/gi)].map(m=>({tag:m[0],src:m[0].match(/\bsrc=["']([^"']+)["']/i)?.[1]})).filter(m=>expected.includes(m.src));
+        const styles=['motion','effects','cinematic'].every(n=>new RegExp('<link\\b[^>]*\\bhref=["\\\']assets/factory-'+n+'\\.css["\\\'][^>]*>','i').test(html));
+        if(!styles||loaded.length!==expected.length||loaded.some((m,i)=>m.src!==expected[i]||!/\bdefer\b/i.test(m.tag)))audit.issues.push({code:'CINEMATIC_RUNTIME',file,detail:'Every cinematic page must load the exact local deferred runtime sequence and all three host stylesheets'});
+      }
     }
     audit.pass=!audit.issues.length;
   }
   const signature = interaction ? validateInteraction(interaction, { candidate, media, pages: Object.keys(audit.siteHashes).filter(f => f.endsWith('.html')), legacy: true }) : null;
   await noLinks(outputRoot); await mkdir(outputRoot, { recursive: true, mode: 0o750 });
-  const report = { at: now(), policy: 'craft-2', pass: false, siteHashes: audit.siteHashes, siteDigest: hash(audit.siteHashes), staticAudit: audit, issues: [...audit.issues], pageChecks: [], axe: [], interactions: [], captures: [], performance: [], scroll: [], coverage: 'Actual isolated Chromium; 5 pages × 5 widths, default installed Axe, all-page keyboard/gallery/filter/disclosure, normal/fast/reverse scroll, intermediate captures, live finite/infinite reduced-motion, API-absent/no-JS, landscape and 200% root-text checks. Local loading/CLS/LCP/long-task samples are lab observations, not field CWV, certified fps, other engines, physical devices, full WCAG or human acceptance.' };
+  const report = { at: now(), policy: 'craft-2', pass: false, siteHashes: audit.siteHashes, siteDigest: hash(audit.siteHashes), staticAudit: audit, issues: [...audit.issues], pageChecks: [], axe: [], interactions: [], captures: [], performance: [], scroll: [], coverage: `Actual isolated Chromium; ${pageCount} page(s) × 5 widths, default installed Axe, all-page keyboard/gallery/filter/disclosure, normal/fast/reverse scroll, intermediate captures, live finite/infinite reduced-motion, API-absent/no-JS, landscape and 200% root-text checks. Local loading/CLS/LCP/long-task samples are lab observations, not field CWV, certified fps, other engines, physical devices, full WCAG or human acceptance.` };
   report.signatureCoverage = signature?.version === 1 ? 'declared_contract_v1' : signature?.coverage || 'not_declared';
   report.signatureContract = signature?.version === 1 ? signature : null;
-  if(effectsPlan)Object.assign(report,{designProfile:PREMIUM_PROFILE,effectsPlan,effectsDigest:effectsDigest(effectsPlan),effectsChecks:[]});
+  if(effectsPlan)Object.assign(report,{designProfile:effectsPlan.profile,effectsPlan,effectsDigest:effectsDigest(effectsPlan),effectsChecks:[]});
   if (!audit.pass) { await writeFile(path.join(outputRoot, 'results.json'), JSON.stringify(report, null, 2)); return report; }
   const preview = await staticPreview(siteRoot), browser = await chromium.launch({ executablePath: process.env.FACTORY_BROWSER_EXECUTABLE, headless: true });
   const external = [], errors = [], resources = [];
@@ -119,6 +133,7 @@ export async function checkSite({ siteRoot, outputRoot, candidate, media = [], s
         const loading = await inspectFirstScreen(page); report.loading.push({ file, viewport: [width, height], ...loading });
         if (audit.siteHashes['assets/factory-motion.js'] && (!loading.sized || !loading.eagerFirstScreen || !loading.primaryVisible)) report.issues.push({ code: 'FIRST_SCREEN', file, viewport: [width, height], sized: loading.sized, eagerFirstScreen: loading.eagerFirstScreen, primaryVisible: loading.primaryVisible });
         if (width === 1440 || width === 390) {
+          if(effectsPlan?.profile===CINEMATIC_PROFILE)await page.waitForTimeout(850);
           const relative = `${file.replace('.html', '')}-first-${width}.png`;
           await page.screenshot({ path: path.join(outputRoot, relative) }); report.captures.push({ relative, file, viewport: [width, height], kind: 'first_screen' });
           report.performance.push({ file, viewport: [width, height], ...await page.evaluate(() => ({ ...window.__factoryPerformance, sampleWindowMs: performance.now() - (window.__factoryPerformance?.start || 0), resources: performance.getEntriesByType('resource').length })), note: 'Fresh local Chromium navigation; no throttling, field/INP or physical-device claim. CLS is a sampled sum, not a session-window field metric.' });
@@ -141,6 +156,11 @@ export async function checkSite({ siteRoot, outputRoot, candidate, media = [], s
         const pass = metrics.scrollWidth <= width + 1 && metrics.main === 1 && metrics.h1 === 1 && metrics.current >= 1 && !metrics.brokenImages && !metrics.deadFragments;
         report.pageChecks.push({ file, viewport: [width, height], pass, metrics }); if (!pass) report.issues.push({ code: 'PAGE_LAYOUT', file, viewport: [width, height], metrics });
         if (width === 1440 || width === 390) { const name = `${file.replace('.html', '')}-${width}.png`; await page.screenshot({ path: path.join(outputRoot, name), fullPage: true }); report.captures.push({ relative: name, file, viewport: [width, height], kind: 'full_page' }); }
+        if(effectsPlan?.profile===CINEMATIC_PROFILE&&(width===1440||width===390)){
+          await page.evaluate(()=>window.scrollTo(0,Math.max(0,(document.documentElement.scrollHeight-innerHeight)/2)));await page.waitForTimeout(850);
+          const relative=`${file.replace('.html','')}-section-${width}.png`;const scrollY=await page.evaluate(()=>Math.round(window.scrollY));await page.screenshot({path:path.join(outputRoot,relative)});report.captures.push({relative,file,viewport:[width,height],scrollY,kind:'section_viewport'});
+          await page.evaluate(()=>window.scrollTo(0,0));
+        }
         if (width === 1440) { const axe = await new AxeBuilder({ page }).analyze(); report.axe.push({ file, violations: axe.violations.map(v => ({ id: v.id, impact: v.impact, nodes: v.nodes.map(n => ({ target: n.target, summary: n.failureSummary })) })), incomplete: axe.incomplete.map(v => ({ id: v.id, nodes: v.nodes.length })) }); if (axe.violations.length) report.issues.push({ code: 'AXE', file, violations: axe.violations.map(v => v.id) }); }
       }
     }

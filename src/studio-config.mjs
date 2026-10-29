@@ -6,6 +6,7 @@ import {hash,now,fail,publicUrl} from './contracts.mjs';
 import {noLinks} from './db.mjs';
 import {record,saveRecord,atomic} from './studio-state.mjs';
 import {configureBudget,studioSpend,acknowledgeSpend} from './studio-budget.mjs';
+import {SITE_PROFILES} from './site-profile.mjs';
 
 export const PROVIDERS={
   deepseek:{label:'DeepSeek',env:'FACTORY_DEEPSEEK_KEY',endpoint:'https://api.deepseek.com/v1/chat/completions',protocol:'chat',model:'deepseek-chat'},
@@ -22,6 +23,7 @@ export const rateCard=z.object({inputUsdPerMillion:z.number().min(0).max(1000).d
 const provider=z.object({enabled:z.boolean().default(true),model:z.union([z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_./:@+-]{0,150}$/),z.literal('')]).default(''),endpoint:link.optional(),price:rateCard.nullable().default(null)}).strict();
 export const studioSettings=z.object({
   version:z.literal(1).default(1),providers:z.record(id,provider),
+  designProfile:z.enum(SITE_PROFILES).optional(),
   roles:z.object({research:id,design:id,code:id,repair:id,vision:id}).strict(),
   city:z.literal('Houston, Texas').default('Houston, Texas'),niche:z.string().trim().min(2).max(100).default('mobile detailing'),
   areas:z.array(z.string().trim().min(2).max(150)).min(1).max(12).default(['Houston, Texas']),

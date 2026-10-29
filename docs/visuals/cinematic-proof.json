@@ -1,0 +1,80 @@
+{
+  "recordedAt": "2026-10-29T02:35:30.405Z",
+  "dateAmericaChicago": "2026-10-28",
+  "verificationScope": "actual_local_chromium_and_injected_ai_tests; no genuine AI site generated",
+  "installation": {
+    "command": "npm ci",
+    "pass": true
+  },
+  "regression": {
+    "command": "env -u FACTORY_MODEL_BACKEND FACTORY_BROWSER_EXECUTABLE=/usr/bin/chromium npm test",
+    "tests": 1605,
+    "passed": 1605,
+    "failed": 0,
+    "skipped": 0,
+    "cancelled": 0,
+    "durationMs": 523156.058892
+  },
+  "protectedPolicies": {
+    "qa": "19035432e0b486bc1cf2c6fd8cf5bdf596db426775d890c977f09129cc3294bb",
+    "production": "3cd584e760b100a7b513ab2b5d9b40e4bb6ccdb02ed0eb06929677e018e5e64c"
+  },
+  "referenceAudit": {
+    "requested": 5,
+    "contentReady": [
+      "exoape",
+      "locomotive",
+      "lusion"
+    ],
+    "visualUnresolved": [
+      "obys",
+      "bruno-simon"
+    ],
+    "note": "Exo Ape navigation succeeded after one retry. Stack and awards not independently established."
+  },
+  "privateConcept": {
+    "creationMethod": "manually_authored_private_proof",
+    "automaticAiGeneration": false,
+    "sourceType": "existing_published_detailing_website; not independently qualified",
+    "photos": 5,
+    "pageChecks": 25,
+    "effectCases": 25,
+    "interactionObservations": 36,
+    "reportedIssues": 0,
+    "axeViolations": 0,
+    "noJavaScript": true,
+    "missingApis": true,
+    "siteBytes": {
+      "total": 914745,
+      "js": 161540,
+      "css": 15035
+    },
+    "siteDigest": "d5c9e7dd44d5f07adba3500639f7b9fa8100edcff0fe771d53f81ceae9dc8bb4",
+    "archiveSha256": "d0c9d4846f8753e89ca3ec65c10f785cf97cfdca171dc1174bb59b5e2ee2d5d9",
+    "archiveBytes": 996927,
+    "isolatedPreviewPass": true,
+    "isolatedOrigin": "null",
+    "walkthroughSeconds": 11.24,
+    "performance": {
+      "kind": "unthrottled local Chromium opening observations, not field CWV",
+      "captures": 10,
+      "maxSampledCls": 0,
+      "lcpMsRange": [
+        84,
+        420
+      ],
+      "longTasks": 0
+    }
+  },
+  "liveAi": {
+    "apiKeysAvailable": false,
+    "nativeCodexAttempted": true,
+    "result": "saved_sign_in_rejected_http_401",
+    "automaticSiteGenerated": false
+  },
+  "leadQualificationVerified": false,
+  "hostingerDeployed": false,
+  "humanAcceptances": 0,
+  "publicCustomerRelease": false,
+  "customerMediaAndResearchCommitted": false
+}

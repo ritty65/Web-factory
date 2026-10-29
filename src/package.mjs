@@ -18,7 +18,7 @@ export function zipBytes(entries) {
   const directory = Buffer.concat(central), end = Buffer.alloc(22); end.writeUInt32LE(0x06054b50); end.writeUInt16LE(entries.length, 8); end.writeUInt16LE(entries.length, 10); end.writeUInt32LE(directory.length, 12); end.writeUInt32LE(offset, 16);
   return Buffer.concat([...parts, directory, end]);
 }
-export async function packageReview({ siteRoot, outputRoot, candidate, media, qa, design, effectsPlan = null }) {
+export async function packageReview({ siteRoot, outputRoot, candidate, media, qa, design, effectsPlan = null,designEvidence=null }) {
   const files = await treeHashes(siteRoot);
   if (!qa?.pass || hash(files) !== hash(qa.siteHashes)) fail('STALE_QA', 'Passing QA must match the exact current site digest; missing or changed bytes block packaging');
   if(qa.effectsPlan&&!effectsPlan)fail('STALE_EFFECTS_QA','The checked premium plan cannot be dropped from a package');
@@ -28,6 +28,7 @@ export async function packageReview({ siteRoot, outputRoot, candidate, media, qa
   }
   const manifest = { schema: 1, intent: 'private_operator_review', businessId: candidate.id, businessName: candidate.name, candidateEvidenceDigest: hash(candidate), siteHashes: files, siteDigest: hash(files), reviewStatus: 'operator_review_required', humanDecision: null, ownerAcceptance: 'unconfirmed', publicRelease: false, imageRights: 'operator_authorized_private_preview', media, design, qaCoverage: qa.coverage, qaDigest: hash(qa) };
   if(effectsPlan)Object.assign(manifest,{designProfile:effectsPlan.profile,effectsPlan,effectsDigest:effectsDigest(effectsPlan),effectsChecks:qa.effectsChecks});
+  if(designEvidence)manifest.designEvidence=designEvidence;
   const entries = await Promise.all(Object.keys(files).map(async name => ({ name, bytes: await readFile(path.join(siteRoot, name)) })));
   entries.push({ name: 'PRIVATE-REVIEW-STATUS.json', bytes: Buffer.from(JSON.stringify(manifest, null, 2)) });
   const bytes = zipBytes(entries), checksum = hash(bytes), archive = `private-proposal-${checksum.slice(0, 12)}.zip`;

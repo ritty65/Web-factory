@@ -13,18 +13,21 @@ import {stageProposal,treeHashes} from './proposal.mjs';
 import {checkSite} from './qa.mjs';
 import {packageReview} from './package.mjs';
 import {PREMIUM_PROFILE, validateEffectsPlan, effectsDigest} from './effects-contract.mjs';
+import {CINEMATIC_PROFILE,SITE_PROFILES} from './site-profile.mjs';
+import {frozenReferencePacket} from './design-references.mjs';
+import {produceDirectorSite} from './director-pipeline.mjs';
 
 async function immutable(file,value){await noLinks(file);await mkdir(path.dirname(file),{recursive:true,mode:0o700});const bytes=Buffer.isBuffer(value)?value:Buffer.from(JSON.stringify(value,null,2));try{await writeFile(file,bytes,{flag:'wx',mode:0o600});}catch(e){if(e.code!=='EEXIST'||hash(await readFile(file))!==hash(bytes))fail('IMMUTABLE_PROOF','Private proof bytes changed');}}
 export async function apiConceptProof(store,job){
-  if(job.input.designProfile!=null&&job.input.designProfile!==PREMIUM_PROFILE)fail('DESIGN_PROFILE','Unknown frozen design profile');
+  if(job.input.designProfile!=null&&!SITE_PROFILES.includes(job.input.designProfile))fail('DESIGN_PROFILE','Unknown frozen design profile');
   if(job.input.ownerIntake){
     const p=await readIntakeProof(store,job),d=p.data;
     if(p.apiSettingsDigest!==settingsDigest(store))fail('STALE_PROVIDER_PROFILE','AI/provider settings changed after this exact brief was queued');
     const candidate={id:p.id,name:d.name,area:d.area,niche:d.niche,contacts:{...(d.phone?{phone:d.phone}:{}),...(d.email?{email:d.email}:{}),...(d.bookingUrl?{booking:d.bookingUrl}:{})},sourceUrls:[d.sourceUrl,...(d.bookingUrl?[d.bookingUrl]:[])],facts:[{id:'supplied-summary',text:d.summary,sourceUrl:d.sourceUrl},...d.services.map((text,i)=>({id:'supplied-service-'+i,text,sourceUrl:d.sourceUrl}))]};
-    return {candidate,photos:p.photos,origin:'operator_supplied_private_concept',settingsDigest:p.apiSettingsDigest,summary:d.summary,designProfile:p.designProfile};
+    return {candidate,photos:p.photos,origin:'operator_supplied_private_concept',settingsDigest:p.apiSettingsDigest,summary:d.summary,designProfile:p.designProfile,designReferences:p.designReferences};
   }
   const binding=job.input.apiConcept,p=binding&&record(store,binding.proofId,'studio_concept_proof');
-  if(!p||p.jobId!==job.id||p.campaignId!==job.campaignId||p.digest!==binding.digest||p.designProfile!==job.input.designProfile||hash({candidate:p.candidate,media:p.media,assessmentDigest:p.assessmentDigest,settingsDigest:p.settingsDigest,...(p.designProfile?{designProfile:p.designProfile}:{})})!==p.digest)fail('API_CONCEPT_BINDING','Exact source-backed proof, design profile and owned job must match');
+  if(!p||p.jobId!==job.id||p.campaignId!==job.campaignId||p.digest!==binding.digest||p.designProfile!==job.input.designProfile||hash(p.designReferences||[])!==hash(job.input.designReferences||[])||hash({candidate:p.candidate,media:p.media,assessmentDigest:p.assessmentDigest,settingsDigest:p.settingsDigest,...(p.designProfile?{designProfile:p.designProfile}:{}),...(p.designReferences?{designReferences:p.designReferences}:{})})!==p.digest)fail('API_CONCEPT_BINDING','Exact source-backed proof, design profile, references and owned job must match');
   if(p.settingsDigest!==settingsDigest(store))fail('STALE_PROVIDER_PROFILE','Provider settings changed after this concept was queued');
   const assessment=record(store,p.assessmentId,'studio_assessment');
   if(!assessment||hash(assessment)!==p.assessmentDigest||assessment.state!=='source_checked'||Date.parse(assessment.expiresAt)<=Date.now())fail('SOURCE_PROOF_EXPIRED','The exact source assessment changed, is incomplete or has expired');
@@ -47,18 +50,21 @@ export async function produceApiSite({store,job,stage,register,jobRoot,jobRelati
   });
   for(const m of media)await register(`${jobRelative}/${m.web_file}`,'photo',`${candidate.name} · private concept photo`);
   const transports=new Set();
-  const invoke=async({task,prompt,files=[]})=>{
+  const invoke=async({task,prompt,files=[],maxOutputTokens})=>{
     await apiConceptProof(store,job);
-    const result=await modelJson(store,{task,prompt,files,requestId:'concept-'+job.id+'-'+hash({task,prompt,files}).slice(0,24),jobId:job.id,signal,...(adapters.studioRequest?{request:adapters.studioRequest}:{})});
+    if(proof.designProfile===CINEMATIC_PROFILE)await frozenReferencePacket(store,job.input.designReferences);
+    const result=await modelJson(store,{task,prompt,files,maxOutputTokens,requestId:'concept-'+job.id+'-'+hash({task,prompt,files,maxOutputTokens}).slice(0,24),jobId:job.id,signal,...(adapters.studioRequest?{request:adapters.studioRequest}:{})});
     transports.add(result.transport);
     return {...result,sessionId:result.providerRequestId};
   };
-  const descriptions=media.length?await stage('media-review',async()=>{
+  const descriptions=media.length&&proof.designProfile!==CINEMATIC_PROFILE?await stage('media-review',async()=>{
     const result=await invoke({task:'vision',prompt:'Inspect the attached photos in manifest order. Return JSON {"descriptions":["literal visible content, no inferred business claims"]}. One description per photo. This is private concept material, rights are not inferred. Manifest: '+JSON.stringify(media.map(m=>({path:m.web_file,alt:m.alt}))),files:media.map(m=>path.join(jobRoot,m.web_file))});
     if(!Array.isArray(result.output.descriptions)||result.output.descriptions.length!==media.length||result.output.descriptions.some(s=>typeof s!=='string'||s.length>1200))fail('MEDIA_REVIEW_SCHEMA','Actual photo descriptions are incomplete');return result.output.descriptions;
   }):[];
   const common={candidate,media,references:[],directory:jobRoot,signal,files:[],apiInvoke:invoke,photoFree:!media.length,designProfile:proof.designProfile,
+    transportSummary:()=>transports.size===1&&transports.has('live_api')?'live_api':'injected_or_unverified',
     feedback:'Private concept only. Facts are from '+proof.origin+'. No public release, owner endorsement, invented portfolio or unverified operational claims. Observed asset descriptions: '+JSON.stringify(descriptions)};
+  if(proof.designProfile===CINEMATIC_PROFILE)return produceDirectorSite({store,job,stage,register,jobRoot,jobRelative,signal,common,media,candidate,proof,assertProof:()=>apiConceptProof(store,job),adapters});
   const brief=await stage('brief',()=> (adapters.makeBrief||creative.makeBrief)(common));
   const effectsPlan=proof.designProfile===PREMIUM_PROFILE?validateEffectsPlan(brief.effectsPlan,{candidate,media,pages:brief.pageMap.map(p=>p.file)}):null;
   const effects=effectsPlan?{designProfile:proof.designProfile,effectsPlan,effectsDigest:effectsDigest(effectsPlan)}:{};

@@ -1,4 +1,6 @@
 // Fixed browser probes. Plans supply literal IDs and media paths, never test code.
+import {checkCinematicEffect} from './qa-cinematic.mjs';
+import {CINEMATIC_EFFECTS} from './site-profile.mjs';
 export function observeEffectFrames() {
   window.__factoryEffectFrames = [];
   const native = Element.prototype.animate;
@@ -8,7 +10,7 @@ export function observeEffectFrames() {
     const root = this.closest('[data-effect]');
     if (!root || args[1]?.id !== 'factory-effect-entry') return animation;
     const record = {targetId: root.id, type: root.dataset.effect, samples: []};
-    if (window.__factoryEffectFrames.length >= 100) return animation;
+    if (window.__factoryEffectFrames.length >= 100||window.__factoryEffectFrames.filter(r=>r.targetId===root.id).length>=3) return animation;
     window.__factoryEffectFrames.push(record);
     const element = this;
     const sample = () => {
@@ -40,6 +42,12 @@ export async function checkEffects(page, plan, {file, width, candidate, capture 
       if (!rect.width || !rect.height || style.visibility === 'hidden' || Number(style.opacity) === 0) failures.push('Invisible effect content: ' + e.targetId);
       if (e.type === 'magnetic' && (!root.matches('button,a[href]') || root.closest('nav') || root.children.length !== 1 || !root.firstElementChild.matches('[data-effect-label]') || ['inline','none'].includes(getComputedStyle(root.firstElementChild).display) || rect.width < 44 || rect.height < 44)) failures.push('Magnetic target needs a stationary 44px control and one label: ' + e.targetId);
       if (e.type === 'split-text' && (!root.matches('h1,h2,h3,h4,h5,h6') || (root.children.length && !root.querySelector('[data-effect-word]')) || (root.getAttribute('aria-label') && normalize(root.getAttribute('aria-label')) !== normalize(root.textContent)))) failures.push('Split heading changed semantic text: ' + e.targetId);
+      if(e.type==='split-chars'&&(!root.matches('h1,h2,h3,h4,h5,h6')||root.textContent.length>240||root.textContent.trim().split(/\s+/).length>32||normalize(root.getAttribute('aria-label')||root.textContent)!==normalize(root.textContent)))failures.push('Character reveal needs a short semantic heading: '+e.targetId);
+      if(e.type==='image-trail'||e.type==='distortion'){
+        const images=[...root.querySelectorAll(e.type==='image-trail'?'img[data-trail-image]':'img')],paths=images.map(i=>(i.getAttribute('src')||'').replace(/^\.\//,''));
+        if(paths.length!==e.mediaFiles.length||e.mediaFiles.some(p=>!paths.includes(p))||new Set(paths).size!==paths.length)failures.push('Advanced imagery must match the exact approved photo set: '+e.targetId);
+      }
+      if(e.type==='scroll-scene'&&!root.querySelector('[data-scene-layer]'))failures.push('Scroll scene needs a dedicated supporting layer: '+e.targetId);
       if (e.type === 'sticky-stack') {
         if ([...root.children].filter(n => n.hasAttribute('data-effect-card')).length < 3 || e.factIds.some(id => !normalize(root.textContent).includes(normalize(facts.find(f => f.id === id)?.text || '\u0000')))) failures.push('Stack is missing three cards or its frozen facts: ' + e.targetId);
       }
@@ -56,11 +64,13 @@ export async function checkEffects(page, plan, {file, width, candidate, capture 
   for (const e of declared) {
     const root = page.locator(`[id="${e.targetId}"]`);
     await root.scrollIntoViewIfNeeded(); await pause(page);
-    if (e.type === 'split-text' || e.type === 'clip-reveal') {
+    if (e.type === 'split-text' || e.type === 'clip-reveal'||e.type==='split-chars') {
       // Observations were collected on real entry during load/the page sweep.
       const evidence = await page.evaluate(id => window.__factoryEffectFrames?.filter(r => r.targetId === id) || [], e.targetId);
       const changed = evidence.some(r => new Set(r.samples.map(s => JSON.stringify({transform:s.transform,clipPath:s.clipPath,opacity:s.opacity}))).size >= 2);
       results.push({name: e.type, targetId: e.targetId, pass: changed, evidence});
+    } else if(CINEMATIC_EFFECTS.includes(e.type)){
+      results.push(await checkCinematicEffect(page,e,{width,capture}));
     } else if (e.type === 'magnetic') {
       const before = await root.boundingBox(), label = root.locator('[data-effect-label]');
       await page.mouse.move(before.x + before.width * .9, before.y + before.height * .8); await pause(page);
@@ -105,8 +115,8 @@ export async function checkEffects(page, plan, {file, width, candidate, capture 
   }
   // A live preference change must cancel running transforms, not merely change a badge.
   await page.emulateMedia({reducedMotion: 'reduce'}); await pause(page);
-  const reset = await page.evaluate(() => ({animations: document.getAnimations().filter(a => a.id === 'factory-effect-entry' && a.playState === 'running').length, transforms: [...document.querySelectorAll('[data-effect-label],[data-effect-word],[data-effect-card]')].some(n => getComputedStyle(n).transform !== 'none'), stacks: document.querySelectorAll('[data-effects-stack]').length}));
-  results.push({name: 'effects_live_reduce', pass: !reset.animations && !reset.transforms && !reset.stacks, evidence: reset});
+  const reset = await page.evaluate(() => ({animations: document.getAnimations().filter(a => a.id === 'factory-effect-entry' && a.playState === 'running').length, transforms: [...document.querySelectorAll('[data-effect-label],[data-effect-word],[data-effect-card],[data-cinematic-char],[data-scene-layer]')].some(n => getComputedStyle(n).transform !== 'none'), stacks: document.querySelectorAll('[data-effects-stack]').length,cinematicDecorations:document.querySelectorAll('[data-cinematic-trail],[data-cinematic-distortion]').length}));
+  results.push({name: 'effects_live_reduce', pass: !reset.animations && !reset.transforms && !reset.stacks&&!reset.cinematicDecorations, evidence: reset});
   await page.emulateMedia({reducedMotion: 'no-preference'});
   return results;
 }

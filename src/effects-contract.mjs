@@ -1,4 +1,5 @@
 import {fail, hash} from './contracts.mjs';
+import {CINEMATIC_PROFILE,CINEMATIC_EFFECTS,SITE_PROFILES} from './site-profile.mjs';
 
 export const PREMIUM_PROFILE = 'premium-practical-v1';
 export const EFFECT_TYPES = Object.freeze(['magnetic', 'sticky-stack', 'split-text', 'clip-reveal', 'drag-gallery']);
@@ -9,14 +10,15 @@ const unique = values => new Set(values).size === values.length;
 
 // Data only: no caller-selected selectors, JavaScript, timings or test programs.
 export function validateEffectsPlan(input, {candidate, media = [], pages = []} = {}) {
-  if (!input || input.version !== 1 || input.profile !== PREMIUM_PROFILE || Object.keys(input).some(k => !['version', 'profile', 'effects'].includes(k))) invalid('A version-1 premium profile is required');
+  if (!input || input.version !== 1 || !SITE_PROFILES.includes(input.profile) || Object.keys(input).some(k => !['version', 'profile', 'effects'].includes(k))) invalid('A supported version-1 quality profile is required');
   if (!Array.isArray(input.effects) || input.effects.length < 3 || input.effects.length > 20) invalid('Declare 3–20 instances from the five tested effect families');
   const facts = new Set((candidate?.facts || []).map(f => f.id));
   const photos = new Set(media.map(m => m.web_file.replace(/^site\//, '')));
   const targets = new Set();
   const effects = input.effects.map(e => {
     if (!e || Object.keys(e).some(k => !['type', 'page', 'targetId', 'purpose', 'fallback', 'factIds', 'mediaFiles'].includes(k))) invalid('Effect fields must be literal supported data');
-    if (!EFFECT_TYPES.includes(e.type) || !pages.includes(e.page) || !identifier.test(e.targetId || '') || !prose(e.purpose) || !prose(e.fallback)) invalid('Each effect needs a supported type, page, element ID, purpose and fallback');
+    const allowed=input.profile===CINEMATIC_PROFILE?[...EFFECT_TYPES,...CINEMATIC_EFFECTS]:EFFECT_TYPES;
+    if (!allowed.includes(e.type) || !pages.includes(e.page) || !identifier.test(e.targetId || '') || !prose(e.purpose) || !prose(e.fallback)) invalid('Each effect needs a supported type, page, element ID, purpose and fallback');
     const key = e.page + ':' + e.targetId;
     if (targets.has(key)) invalid('An element may own only one declared effect');
     targets.add(key);
@@ -26,10 +28,14 @@ export function validateEffectsPlan(input, {candidate, media = [], pages = []} =
     if (e.type === 'sticky-stack' && factIds.length < 3) invalid('A sticky stack needs at least three supporting facts');
     if (e.type === 'drag-gallery' && mediaFiles.length < 3) invalid('A gallery needs at least three approved distinct photos');
     if (e.type === 'drag-gallery' && new Set(mediaFiles.map(file=>media.find(m=>m.web_file.replace(/^site\//,'')===file)?.web_sha256 || file)).size < 3) invalid('Copied photo bytes cannot count as three distinct gallery images');
+    if(e.type==='image-trail'&&mediaFiles.length<3)invalid('An image trail needs three approved images');
+    if(e.type==='distortion'&&mediaFiles.length!==1)invalid('Image distortion needs one approved image');
     return {type: e.type, page: e.page, targetId: e.targetId, purpose: e.purpose.trim(), fallback: e.fallback.trim(), factIds, mediaFiles};
   });
   if (new Set(effects.map(e => e.type)).size < 3 || new Set(effects.filter(e => e.page === 'index.html').map(e => e.type)).size < 3) invalid('Use at least three distinct families on the homepage, not repeated instances of one effect');
-  return {version: 1, profile: PREMIUM_PROFILE, effects};
+  if(input.profile===CINEMATIC_PROFILE&&new Set(effects.map(e=>e.type)).size>5)invalid('Choose at most five distinct families for one coherent visual system');
+  if(input.profile===CINEMATIC_PROFILE&&!effects.some(e=>e.page==='index.html'&&CINEMATIC_EFFECTS.includes(e.type)))invalid('A cinematic homepage needs a deliberate advanced interaction, not only the basic pack');
+  return {version: 1, profile: input.profile, effects};
 }
 
 export const effectsDigest = plan => hash(plan);
